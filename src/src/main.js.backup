@@ -1,0 +1,942 @@
+import './style.css'
+import { addExpense, getAllExpenses, getExpense, deleteExpense as dbDeleteExpense, updateExpense } from './db.js'
+import { parseExpenseWithGemini } from './gemini.js'
+import { analyzeExpensesWithGemini, runSQLOnExpenses } from './analyze.js'
+import alasql from 'alasql'
+import { signInGoogle, isSignedIn, uploadToDrive, pickAndDownloadFromDrive } from './googleDrive.js'
+
+const app = document.querySelector('#app')
+
+function getGeminiKey() {
+  return localStorage.getItem('gemini_api_key') || ''
+}
+
+function setGeminiKey(key) {
+  localStorage.setItem('gemini_api_key', key)
+}
+
+function showGeminiKeyPopup(force = false) {
+  if (document.getElementById('gemini-popup')) return
+  const popup = document.createElement('div')
+  popup.id = 'gemini-popup'
+  popup.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;'
+  popup.innerHTML = `
+    <div style="background:#222;padding:2rem;border-radius:10px;min-width:300px;max-width:90vw;display:flex;flex-direction:column;align-items:center;">
+      <h2>Enter Gemini API Key</h2>
+      <input type="password" id="popup-gemini-key" placeholder="Gemini API Key" style="width:100%;margin-bottom:1rem;" />
+      <div id="popup-error" style="color:red;margin-bottom:1rem;"></div>
+      <div style="display:flex;gap:1rem;">
+        <button id="save-gemini-key">Save</button>
+        <button id="close-gemini-popup">${force ? 'Close (disabled)' : 'Close'}</button>
+      </div>
+    </div>
+  `
+  document.body.appendChild(popup)
+  document.getElementById('save-gemini-key').onclick = () => {
+    const key = document.getElementById('popup-gemini-key').value
+    if (!key) {
+      document.getElementById('popup-error').textContent = 'API key required.'
+      return
+    }
+    setGeminiKey(key)
+    document.body.removeChild(popup)
+    renderForm()
+  }
+  document.getElementById('close-gemini-popup').onclick = () => {
+    if (force) return
+    document.body.removeChild(popup)
+  }
+}
+
+function renderNav() {
+  app.innerHTML = `
+    <nav class="main-nav">
+      <div class="hamburger-menu" style="margin-right:1.5em;">
+        <button id="hamburger-btn" style="font-size:1.5em;background:none;border:none;cursor:pointer;">☰</button>
+        <div id="hamburger-dropdown" style="display:none;position:absolute;left:0;top:2.5em;background:#232323;padding:1em 2em;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:100;min-width:220px;text-align:left;">
+          <div id="google-account-status"></div>
+          <button id="sync-drive" style="background:#4285F4;color:#fff;padding:0.5rem 1.5rem;border:none;border-radius:6px;font-size:1em;width:100%;margin-top:1em;">🔄 Sync with Google Drive</button>
+          <button id="load-drive" style="background:#34A853;color:#fff;padding:0.5rem 1.5rem;border:none;border-radius:6px;font-size:1em;width:100%;margin-top:0.5em;">⬇️ Load from Google Drive</button>
+          <button id="gemini-key-btn" style="background:#ffb347;color:#232323;padding:0.5rem 1.5rem;border:none;border-radius:6px;font-size:1em;width:100%;margin-top:0.5em;"></button>
+          <div id="drive-msg" style="color:#4285F4;margin-top:1rem;"></div>
+        </div>
+      </div>
+      <button id="nav-home">🏠 Home</button>
+      <button id="nav-expenses">💸 Expenses</button>
+      <button id="nav-analyze">🔍 Analyze</button>
+      <button id="nav-summary">📊 Visualize</button>
+    </nav>
+    <div id="page-content"></div>
+  `
+  document.getElementById('nav-home').onclick = () => renderForm()
+  document.getElementById('nav-expenses').onclick = () => renderExpensesPage()
+  document.getElementById('nav-analyze').onclick = () => renderAnalyzePage()
+  document.getElementById('nav-summary').onclick = () => renderSummaryPage()
+  // Hamburger menu logic
+  const hamburgerBtn = document.getElementById('hamburger-btn')
+  const dropdown = document.getElementById('hamburger-dropdown')
+  hamburgerBtn.onclick = (e) => {
+    e.stopPropagation()
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block'
+    renderGoogleAccountStatus()
+    // Attach Drive button handlers
+    document.getElementById('sync-drive').onclick = handleDriveSync
+    document.getElementById('load-drive').onclick = handleDriveLoad
+    // Gemini key button
+    const geminiKey = getGeminiKey()
+    const geminiBtn = document.getElementById('gemini-key-btn')
+    geminiBtn.textContent = geminiKey ? 'Show Gemini Key' : 'Add Gemini Key'
+    geminiBtn.onclick = () => showGeminiKeyPopup(false)
+  }
+  document.body.onclick = () => { dropdown.style.display = 'none' }
+}
+
+function handleDriveSync() {
+  const driveMsg = document.getElementById('drive-msg')
+  driveMsg.textContent = 'Syncing to Google Drive...';
+  isSignedIn().then(async (signedIn) => {
+    if (!signedIn) await signInGoogle();
+    const expenses = await getAllExpenses();
+    const filename = `expenses-backup-${new Date().toISOString().slice(0,10)}.json`;
+    try {
+      const result = await uploadToDrive(filename, JSON.stringify(expenses, null, 2));
+      if (result && result.id) {
+        driveMsg.textContent = 'Backup uploaded to Google Drive!';
+      } else {
+        driveMsg.textContent = 'Google Drive sync failed: ' + JSON.stringify(result);
+      }
+    } catch (err) {
+      driveMsg.textContent = 'Google Drive sync failed: ' + (err.message || err);
+    }
+  })
+}
+
+function handleDriveLoad() {
+  const driveMsg = document.getElementById('drive-msg')
+  driveMsg.textContent = 'Loading from Google Drive... (feature coming soon)'
+  // TODO: Implement file picker and restore logic
+}
+
+function renderForm() {
+  document.getElementById('page-content').innerHTML = `
+    <h1 class="app-title"><span class="highlight">AI</span> Expense Tracker</h1>
+    <div id="today-expenses-block"></div>
+    <form id="expense-form" class="modern-form">
+      <div class="input-group">
+        <label for="description">Enter your expense</label>
+        <div class="input-container">
+          <textarea 
+            id="description" 
+            class="modern-input modern-textarea" 
+            placeholder="Type or paste your expense (e.g. I spent 200 on tea yesterday)" 
+            required
+          ></textarea>
+          <button type="button" id="clear-description" class="clear-button">
+            <i class="fas fa-times-circle"></i>
+          </button>
+        </div>
+        <div class="input-hint">Use natural language to describe your expense</div>
+      </div>
+      <button type="submit" class="modern-button">
+        <i class="fas fa-plus-circle"></i> Add Expense with AI
+      </button>
+    </form>
+    <div id="review-expense-modal" style="display:none;"></div>
+    <div id="error-msg" class="error-message"></div>
+  `
+  renderTodayExpenses()
+  document.getElementById('clear-description').onclick = () => {
+    document.getElementById('description').value = ''
+    document.getElementById('description').focus()
+  }
+  document.getElementById('expense-form').onsubmit = async (e) => {
+    e.preventDefault()
+    const text = document.getElementById('description').value
+    const apiKey = getGeminiKey()
+    if (!apiKey) {
+      document.getElementById('error-msg').textContent = 'Gemini API key is required.'
+      showGeminiKeyPopup(true)
+      return
+    }
+    try {
+      const aiExpense = await parseExpenseWithGemini(text, apiKey)
+      const expense = {
+        description: aiExpense.description || text,
+        amount: parseFloat(aiExpense.amount) || 0,
+        category: aiExpense.category || 'other',
+        date: aiExpense.date || new Date().toISOString().slice(0, 10),
+        created_at: new Date().toISOString().slice(0, 10)
+      }
+      showReviewExpenseModal(expense)
+    } catch (err) {
+      document.getElementById('error-msg').textContent = err.message
+    }
+  }
+}
+
+function showReviewExpenseModal(expense) {
+  const modal = document.getElementById('review-expense-modal')
+  modal.style.display = 'block'
+  modal.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal-container theme-modal">
+        <h3 class="modal-title">Review Expense</h3>
+        <div class="review-expense-content">
+          <div class="review-expense-amount">₹${expense.amount.toFixed(2)}</div>
+          <div class="review-expense-details">
+            <div class="review-detail-item">
+              <span class="detail-label">Category</span>
+              <span class="detail-value">${expense.category}</span>
+            </div>
+            <div class="review-detail-item">
+              <span class="detail-label">Date</span>
+              <span class="detail-value">${expense.date}</span>
+            </div>
+            <div class="review-detail-item">
+              <span class="detail-label">Description</span>
+              <span class="detail-value">${expense.description || 'No description'}</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button id="confirm-expense-btn" class="action-button confirm-button">
+            <i class="fas fa-check"></i> Confirm
+          </button>
+          <button id="delete-expense-btn" class="action-button delete-button">
+            <i class="fas fa-times"></i> Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  `
+  document.getElementById('confirm-expense-btn').onclick = async () => {
+    await addExpense(expense)
+    modal.style.display = 'none'
+    renderTodayExpenses()
+    showNotification('Expense added!')
+    document.getElementById('expense-form').reset()
+  }
+  document.getElementById('delete-expense-btn').onclick = () => {
+    modal.style.display = 'none'
+    showNotification('Expense discarded')
+  }
+}
+
+function renderTodayExpenses() {
+  const block = document.getElementById('today-expenses-block')
+  const today = new Date().toISOString().slice(0,10)
+  getAllExpenses().then(expenses => {
+    const todays = expenses.filter(e => e.date === today)
+    if (!todays.length) {
+      block.innerHTML = `
+        <div class="no-expenses-message">
+          <span>✨ No expenses added for today yet!</span>
+          <p>Start tracking your spending by adding your first expense for today. Stay on top of your finances! 🚀</p>
+        </div>
+      `
+      return
+    }
+    block.innerHTML = `<h3 class="section-title">Today's Expenses</h3><div class="expense-deck scrollable-expense-list"></div>`
+    const list = block.querySelector('.expense-deck')
+    
+    // Reverse the array to show newest expenses on top
+    todays.reverse().forEach((e, index) => {
+      const card = document.createElement('div')
+      card.className = 'card-in-deck metallic theme-card'
+      card.style.zIndex = 100 - index
+      card.style.transform = `translateY(${index * 10}px) rotate(${index % 2 === 0 ? -1 : 1}deg)`
+      card.style.animationDelay = `${index * 0.1}s`
+      
+      const formattedTime = new Date(e.date).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      card.innerHTML = `
+        <div class="expense-row">
+          <div class="expense-deck-amount">₹${e.amount.toFixed(2)}</div>
+          <div class="expense-deck-details">
+            <span class="expense-deck-category">${e.category}</span>
+            <span class="expense-deck-desc">${e.description || 'No description'}</span>
+            <span class="expense-deck-time">${formattedTime}</span>
+          </div>
+        </div>
+      `
+      list.appendChild(card)
+    })
+  })
+}
+
+function renderExpensesPage() {
+  document.getElementById('page-content').innerHTML = `
+    <h2><span class="expense-icon">💸</span> Expenses</h2>
+    
+    <div class="time-filter-tabs">
+      <button class="time-filter-tab active" data-period="daily">Daily</button>
+      <button class="time-filter-tab" data-period="monthly">Monthly</button>
+      <button class="time-filter-tab" data-period="yearly">Yearly</button>
+    </div>
+    
+    <div class="date-selector">
+      <button id="prev-date" class="date-nav-button">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <div id="current-date-display" class="current-date"></div>
+      <button id="next-date" class="date-nav-button">
+        <i class="fas fa-chevron-right"></i>
+      </button>
+    </div>
+    
+    <div id="expenses-list" class="expenses-container"></div>
+    
+    <div id="expenses-summary" class="expenses-summary"></div>
+  `
+  
+  // Set up the time period filter tabs
+  const tabs = document.querySelectorAll('.time-filter-tab')
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      tabs.forEach(t => t.classList.remove('active'))
+      tab.classList.add('active')
+      updateExpensesView()
+    })
+  })
+  
+  // Set up date navigation
+  document.getElementById('prev-date').addEventListener('click', () => {
+    navigateDate('prev')
+  })
+  
+  document.getElementById('next-date').addEventListener('click', () => {
+    navigateDate('next')
+  })
+  
+  // Initial render
+  updateExpensesView()
+}
+
+// Global variables to track current date view
+let currentViewDate = new Date()
+let currentPeriod = 'daily'
+
+function updateExpensesView() {
+  // Get the currently selected period
+  currentPeriod = document.querySelector('.time-filter-tab.active').dataset.period
+  
+  // Update the date display
+  updateDateDisplay()
+  
+  // Fetch and display expenses
+  renderFilteredExpenses()
+}
+
+  // Fetch and display expenses
+  renderFilteredExpenses().getElementById('current-date-display')
+} 
+  switch(currentPeriod) {
+function updateDateDisplay() {
+  const display = document.getElementById('current-date-display')n-US', {
+        weekday: 'long',
+  switch(currentPeriod) {
+    case 'daily':ong',
+      display.textContent = currentViewDate.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'ent = currentViewDate.toLocaleDateString('en-US', {
+      })year: 'numeric',
+      breakth: 'long'
+    case 'monthly':
+      display.textContent = currentViewDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long'tent = currentViewDate.getFullYear().toString()
+      })eak
+      break
+    case 'yearly':
+      display.textContent = currentViewDate.getFullYear().toString()
+      breakvigateDate(direction) {
+  }witch(currentPeriod) {
+}   case 'daily':
+      if (direction === 'prev') {
+        currentViewDate.setDate(currentViewDate.getDate() - 1)
+      } else {hly':
+        currentViewDate.setDate(currentViewDate.getDate() + 1)
+      } currentViewDate.setMonth(currentViewDate.getMonth() - 1)
+      breake {
+    case 'monthly':Date.setMonth(currentViewDate.getMonth() + 1)
+      if (direction === 'prev') {
+        currentViewDate.setMonth(currentViewDate.getMonth() - 1)
+      } else {ly':
+        currentViewDate.setMonth(currentViewDate.getMonth() + 1)
+      } currentViewDate.setFullYear(currentViewDate.getFullYear() - 1)
+      breake {
+    case 'yearly':wDate.setFullYear(currentViewDate.getFullYear() + 1)
+      if (direction === 'prev') {
+        currentViewDate.setFullYear(currentViewDate.getFullYear() - 1)
+      } else {
+        currentViewDate.setFullYear(currentViewDate.getFullYear() + 1)
+      }eExpensesView()
+      break
+  }
+  ync function renderFilteredExpenses() {
+  updateExpensesView()it getAllExpenses()
+} const filteredExpenses = filterExpensesByPeriod(expenses, currentPeriod, currentViewDate)
+  
+async function renderFilteredExpenses() {
+  allExpensesCache = await getAllExpenses()ById('expenses-list')
+  filteredExpensesCache = filterExpensesByPeriod(allExpensesCache, currentPeriod, currentViewDate)
+  if (filteredExpenses.length === 0) {
+  const listElement = document.getElementById('expenses-list')
+  const loadMoreContainer = document.getElementById('load-more-container')
+        <span>No expenses found for this period</span>
+  if (filteredExpensesCache.length === 0) {ate or time period.</p>
+    listElement.innerHTML = `
+      <div class="no-expenses-message">
+        <span>No expenses found for this period</span>TML = ''
+        <p>Try selecting a different date or time period.</p>
+      </div>
+    `
+    loadMoreContainer.style.display = 'none'
+    returnYearlySummary(filteredExpenses)
+  } else {
+    renderExpensesList(filteredExpenses, listElement)
+  if (currentPeriod === 'yearly') {enses)
+    renderYearlySummary(filteredExpensesCache)
+    loadMoreContainer.style.display = 'none'
+    return
+  } period, date) {
+  onst year = date.getFullYear()
+  // Get paginated results const month = date.getMonth()
+  const paginatedExpenses = getPaginatedExpenses()  const day = date.getDate()
+  renderExpensesList(paginatedExpenses, listElement)
+  => {
+  // Show or hide load more buttone(expense.date)
+  if (filteredExpensesCache.length > currentPage * PAGE_SIZE) {nseDate.getFullYear()
+    loadMoreContainer.style.display = 'flex'  const expenseMonth = expenseDate.getMonth()
+    document.getElementById('load-more-btn').onclick = loadMoreExpensestDate()
+  } else {
+    loadMoreContainer.style.display = 'none'
+      case 'daily':
+        return expenseYear === year && expenseMonth === month && expenseDay === day
+      case 'monthly':
+        return expenseYear === year && expenseMonth === month
+      case 'yearly':
+        return expenseYear === year
+      default:
+        return true
+    }
+  })
+}
+
+function renderExpensesList(expenses, container) {
+  // Sort expenses by date (newest first)
+  const sortedExpenses = [...expenses].sort((a, b) => 
+    new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00'))
+  )
+  
+  // Group expenses by date for daily/monthly views
+  const groupedByDate = {}
+  
+  sortedExpenses.forEach(expense => {
+    if (!groupedByDate[expense.date]) {
+      groupedByDate[expense.date] = []
+    }
+    groupedByDate[expense.date].push(expense)
+  })
+  
+  let html = '<div class="expense-cards expense-cards-list">'
+  
+  // Create date groups
+  Object.entries(groupedByDate).forEach(([date, dateExpenses], groupIndex) => {
+    const formattedGroupDate = new Date(date).toLocaleDateString('en-US', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+    
+    html += `
+      <div class="expense-date-divider" style="animation-delay: ${groupIndex * 0.15}s;">
+        <span>${formattedGroupDate}</span>
+      </div>
+    `
+    
+    dateExpenses.forEach((expense, index) => {
+      const formattedDate = new Date(expense.date).toLocaleDateString('en-US', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        year: '2-digit'
+      })
+      
+      const animationDelay = (groupIndex * dateExpenses.length + index) * 0.08
+      
+      html += `
+        <div class="expense-card" style="animation-delay: ${animationDelay}s;" data-id="${expense.id}" onclick="showExpenseDetails(this)">
+          <div class="expense-amount">₹${expense.amount.toFixed(2)}</div>
+          <div class="expense-date"><i class="fas fa-calendar-alt"></i> ${formattedDate}</div>
+          <div class="expense-category">${expense.category}</div>
+          <div class="expense-desc">${expense.description || 'No description'}</div>
+          <div class="expense-card-action">
+            <span class="view-more">Tap for details</span>
+          </div>
+        </div>
+      `
+    })
+  })
+  
+  html += '</div>'
+  container.innerHTML = html
+}
+
+function renderPeriodSummary(expenses) {
+  const summaryContainer = document.getElementById('expenses-summary')
+  
+  // Calculate total
+  const total = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+  
+  // Group by category
+  const categories = {}
+  expenses.forEach(expense => {
+    if (!categories[expense.category]) {
+      categories[expense.category] = 0
+    }
+    categories[expense.category] += expense.amount
+  })
+  
+  // Sort categories by amount
+  const sortedCategories = Object.entries(categories)
+    .sort(([, amountA], [, amountB]) => amountB - amountA)
+  
+  let html = `
+    <div class="period-summary">
+      <h3>Summary - ${currentPeriod === 'daily' ? 'Daily' : 'Monthly'}</h3>
+      <div class="total-amount">₹${total.toFixed(2)}</div>
+      <div class="category-breakdown">
+  `
+  
+  sortedCategories.forEach(([category, amount]) => {
+    const percentage = Math.round((amount / total) * 100)
+    
+    html += `
+      <div class="category-item">
+        <div class="category-header">
+          <span class="category-name">${category}</span>
+          <span class="category-amount">₹${amount.toFixed(2)}</span>
+        </div>
+        <div class="category-bar-container">
+          <div class="category-bar" style="width: ${percentage}%"></div>
+          <span class="category-percentage">${percentage}%</span>
+        </div>
+      </div>
+    `
+  })
+  
+  html += `
+      </div>
+    </div>
+  `
+  
+  summaryContainer.innerHTML = html
+}
+
+function renderYearlySummary(expenses) {
+  const listContainer = document.getElementById('expenses-list')
+  const summaryContainer = document.getElementById('expenses-summary')
+  
+  // Group expenses by month
+  const months = Array(12).fill(0).map((_, i) => {
+    return {
+      month: i,
+      name: new Date(0, i).toLocaleString('default', { month: 'long' }),
+      amount: 0
+    }
+  })
+  
+  // Group by category
+  const categories = {}
+  
+  expenses.forEach(expense => {
+    const expenseDate = new Date(expense.date)
+    const monthIndex = expenseDate.getMonth()
+    
+    // Add to month total
+    months[monthIndex].amount += expense.amount
+    
+    // Add to category
+    if (!categories[expense.category]) {
+      categories[expense.category] = 0
+    }
+    categories[expense.category] += expense.amount
+  })
+  
+  // Sort categories by amount
+  const sortedCategories = Object.entries(categories)
+    .sort(([, amountA], [, amountB]) => amountB - amountA)
+  
+  // Calculate total
+  const total = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+  
+  // Create monthly chart
+  let monthsHtml = `
+    <div class="yearly-chart">
+      <h3>Monthly Breakdown - ${currentViewDate.getFullYear()}</h3>
+      <div class="monthly-chart">
+  `
+  
+  const highestMonth = Math.max(...months.map(m => m.amount))
+  
+  months.forEach(month => {
+    const height = month.amount > 0 ? (month.amount / highestMonth) * 100 : 0
+    monthsHtml += `
+      <div class="month-column">
+        <div class="month-bar-container">
+          <div class="month-amount">₹${month.amount.toFixed(0)}</div>
+          <div class="month-bar" style="height: ${height}%"></div>
+        </div>
+        <div class="month-name">${month.name.substr(0, 3)}</div>
+      </div>
+    `
+  })
+  
+  monthsHtml += `
+      </div>
+    </div>
+  `
+  
+  // Create category breakdown
+  let categoriesHtml = `
+    <div class="yearly-categories">
+      <h3>Categories - ${currentViewDate.getFullYear()}</h3>
+      <div class="total-amount">₹${total.toFixed(2)}</div>
+      <div class="category-breakdown">
+  `
+  
+  sortedCategories.forEach(([category, amount]) => {
+    const percentage = Math.round((amount / total) * 100)
+    
+    categoriesHtml += `
+      <div class="category-item">
+        <div class="category-header">
+          <span class="category-name">${category}</span>
+          <span class="category-amount">₹${amount.toFixed(2)}</span>
+        </div>
+        <div class="category-bar-container">
+          <div class="category-bar" style="width: ${percentage}%"></div>
+          <span class="category-percentage">${percentage}%</span>
+        </div>
+      </div>
+    `
+  })
+  
+  categoriesHtml += `
+      </div>
+    </div>
+  `
+  
+  // Combine both visualizations
+  listContainer.innerHTML = monthsHtml
+  summaryContainer.innerHTML = categoriesHtml
+}
+function renderAnalyzePage() {
+  document.getElementById('page-content').innerHTML = `
+    <h2>🔍 Analyze Your Expenses</h2>
+    <form id="analyze-form" style="display:flex;gap:1rem;align-items:center;">
+      <input type="text" id="analyze-query" placeholder="Ask a question (e.g., How much did I spend on tea yesterday?)" style="flex:1;" required />
+      <button type="submit">Analyze</button>
+    </form>
+    <div id="analyze-results" style="margin-top:1rem;"></div>
+  `
+  document.getElementById('analyze-form').onsubmit = async (e) => {
+    e.preventDefault()
+    const query = document.getElementById('analyze-query').value
+    const apiKey = getGeminiKey()
+    if (!apiKey) {
+      document.getElementById('analyze-results').innerHTML = '<span style="color:red;">Gemini API key is required.</span>'
+      showGeminiKeyPopup(true)
+      return
+    }
+    document.getElementById('analyze-results').textContent = 'Analyzing...'
+    try {
+      const { sql, expenses } = await analyzeExpensesWithGemini(query, apiKey)
+      // Extra debug: log the SQL and the expenses data
+      console.log('SQL sent to alasql:', sql)
+      console.log('Expenses data for alasql:', expenses)
+      const results = runSQLOnExpenses(sql, expenses)
+      console.log("Alasql response", results)
+      let displayResult = results
+      if (Array.isArray(results)) {
+        if (results.length === 0) {
+          displayResult = 'No results found.'
+        } else if (results.length === 1) {
+          const val = results[0]
+          console.log("val", val)
+          if (val === undefined || val === null) {
+            displayResult = 0
+          } else if (typeof val === 'object' && val !== null) {
+            // For aggregate queries like SUM(amount)
+            const firstKey = Object.keys(val)[0]
+            const aggVal = val["amount"]
+            displayResult = (aggVal === undefined || aggVal === null) ? 0 : aggVal
+          } else {
+            displayResult = val
+          }
+        }
+      }
+      // Dynamic styling based on query response
+      let html = ''
+      if (Array.isArray(displayResult)) {
+        if (displayResult.length === 0) {
+          html = '<div class="analyze-no-results">No results found.</div>'
+        } else if (typeof displayResult[0] === 'object' && displayResult[0] !== null) {
+          // Render as table for array of objects
+          const keys = Object.keys(displayResult[0])
+          html = `<table class="analyze-table"><thead><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr></thead><tbody>`
+          html += displayResult.map(row => `<tr>${keys.map(k => `<td>${row[k] ?? ''}</td>`).join('')}</tr>`).join('')
+          html += '</tbody></table>'
+        } else {
+          html = `<div class="analyze-value">${displayResult}</div>`
+        }
+      } else {
+        html = `<div class="analyze-value">${displayResult}</div>`
+      }
+      document.getElementById('analyze-results').innerHTML = `
+        <div class="analyze-result-block">
+          ${html}
+          <div style='margin-top:0.5rem;color:#888;font-size:0.9em;'>SQL: <code>${sql}</code></div>
+        </div>
+      `
+    } catch (err) {
+      document.getElementById('analyze-results').innerHTML = `<span style='color:red;'>${err.message}</span>`
+    }
+  }
+}
+
+async function renderSummaryPage() {
+  document.getElementById('page-content').innerHTML = `
+    <h2>📊 Spending Summary</h2>
+    <div class="tabs">
+      <button class="tab-btn" id="tab-daily">📅 Daily</button>
+      <button class="tab-btn" id="tab-monthly">📆 Monthly</button>
+      <button class="tab-btn" id="tab-yearly">📈 Yearly</button>
+    </div>
+    <div id="tab-content" style="margin-top:1.5rem;"></div>
+  `
+  document.getElementById('tab-daily').onclick = () => renderSummaryTab('daily')
+  document.getElementById('tab-monthly').onclick = () => renderSummaryTab('monthly')
+  document.getElementById('tab-yearly').onclick = () => renderSummaryTab('yearly')
+  renderSummaryTab('daily')
+}
+
+async function renderSummaryTab(type) {
+  const content = document.getElementById('tab-content')
+  content.innerHTML = `<div id="summary-chart" style="height:300px;"></div><div id="summary-table"></div>`
+  const expenses = await getAllExpenses()
+  let groups = {}
+  if (type === 'daily') {
+    groups = groupBy(expenses, e => e.date)
+  } else if (type === 'monthly') {
+    groups = groupBy(expenses, e => e.date.slice(0,7))
+  } else if (type === 'yearly') {
+    groups = groupBy(expenses, e => e.date.slice(0,4))
+  }
+  // Prepare data for chart and table
+  const labels = Object.keys(groups)
+  const data = labels.map(label => groups[label].reduce((sum, e) => sum + (e.amount || 0), 0))
+  // Render chart
+  renderChart(labels, data, type)
+  // Render table by category
+  let table = `<table class="analyze-table"><thead><tr><th>${type.charAt(0).toUpperCase()+type.slice(1)}</th><th>Total</th></tr></thead><tbody>`
+  labels.forEach((label, i) => {
+    table += `<tr><td>${label}</td><td>₹${data[i].toFixed(2)}</td></tr>`
+  })
+  table += '</tbody></table>'
+  document.getElementById('summary-table').innerHTML = table
+}
+
+function groupBy(arr, fn) {
+  return arr.reduce((acc, x) => {
+    const k = fn(x)
+    acc[k] = acc[k] || []
+    acc[k].push(x)
+    return acc
+  }, {})
+}
+
+function renderChart(labels, data, type) {
+  // Use Chart.js from CDN if not already loaded
+  if (!window.Chart) {
+    const script = document.createElement('script')
+    script.src = 'https://cdn.jsdelivr.net/npm/chart.js'
+    script.onload = () => renderChart(labels, data, type)
+    document.body.appendChild(script)
+    return
+  }
+  const ctxId = 'chart-canvas'
+  let canvas = document.getElementById(ctxId)
+  if (!canvas) {
+    canvas = document.createElement('canvas')
+    canvas.id = ctxId
+    document.getElementById('summary-chart').appendChild(canvas)
+  }
+  if (window._chart) window._chart.destroy()
+  window._chart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: `Spending (${type})`,
+        data,
+        backgroundColor: '#4caf50',
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } }
+    }
+  })
+}
+
+async function renderExpenses() {
+  const expenses = await getAllExpenses()
+  const list = document.getElementById('expenses-list')
+  if (!expenses.length) {
+    list.innerHTML = '<p>No expenses yet.</p>'
+    return
+  }
+  list.innerHTML = `
+    <h2>Expenses</h2>
+    <ul>
+      ${expenses.map(e => `<li>₹${e.amount.toFixed(2)} - ${e.category} - ${e.description} (${e.date})</li>`).join('')}
+    </ul>
+  `
+}
+
+async function renderGoogleAccountStatus() {
+  const statusDiv = document.getElementById('google-account-status')
+  statusDiv.innerHTML = 'Checking Google account...'
+  try {
+    const { isSignedIn } = await import('./googleDrive.js')
+    const signedIn = await isSignedIn()
+    if (signedIn) {
+      const { getGoogleUserProfile, signOutGoogle } = await import('./googleDrive.js')
+      const profile = await getGoogleUserProfile()
+      statusDiv.innerHTML = `
+        <img src="${profile.imageUrl}" alt="Profile" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;"> 
+        <span>${profile.name} (${profile.email})</span>
+        <button id="google-signout-btn" style="margin-left:1em;">Sign out</button>
+      `
+      document.getElementById('google-signout-btn').onclick = async () => {
+        await signOutGoogle()
+        statusDiv.innerHTML = 'Signed out.'
+      }
+    } else {
+      statusDiv.innerHTML = '<span>Not signed in to Google</span>'
+    }
+  } catch (e) {
+    statusDiv.innerHTML = '<span style="color:red;">Google account status error</span>'
+  }
+}
+
+async function showExpenseDetails(cardElement) {
+  const id = cardElement.getAttribute('data-id')
+  const expense = await getExpense(id)
+  
+  if (!expense) return
+  
+  const formattedDate = new Date(expense.date).toLocaleDateString('en-US', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  })
+  
+  // Create modal if it doesn't exist
+  let modal = document.getElementById('expense-detail-modal')
+  if (!modal) {
+    modal = document.createElement('div')
+    modal.id = 'expense-detail-modal'
+    modal.className = 'expense-detail-modal'
+    document.body.appendChild(modal)
+  }
+  
+  // Populate modal content
+  modal.innerHTML = `
+    <div class="expense-detail-content">
+      <button class="modal-close" onclick="closeExpenseDetails()">&times;</button>
+      <h3>Expense Details</h3>
+      <div class="expense-amount">₹${expense.amount.toFixed(2)}</div>
+      <div class="form-group">
+        <label>Category</label>
+        <div>${expense.category}</div>
+      </div>
+      <div class="form-group">
+        <label>Description</label>
+        <div>${expense.description || 'No description'}</div>
+      </div>
+      <div class="form-group">
+        <label>Date</label>
+        <div>${formattedDate}</div>
+      </div>
+      <div class="expense-actions">
+        <button class="action-button" onclick="editExpense('${expense.id}')">
+          <i class="fas fa-edit"></i> Edit
+        </button>
+        <button class="action-button" style="background-color: #f44336;" onclick="deleteExpense('${expense.id}')">
+          <i class="fas fa-trash"></i> Delete
+        </button>
+      </div>
+    </div>
+  `
+  
+  // Show modal
+  setTimeout(() => {
+    modal.classList.add('show')
+  }, 10)
+}
+
+function closeExpenseDetails() {
+  const modal = document.getElementById('expense-detail-modal')
+  if (modal) {
+    modal.classList.remove('show')
+    setTimeout(() => {
+      modal.remove()
+    }, 300)
+  }
+}
+
+async function editExpense(id) {
+  // Implementation for editing expenses can be added here
+  console.log(`Edit expense ${id}`)
+  closeExpenseDetails()
+}
+
+async function deleteExpense(id) {
+  if (confirm('Are you sure you want to delete this expense?')) {
+    await dbDeleteExpense(id)
+    closeExpenseDetails()
+    // Update the current view based on where we are in the app
+    if (document.querySelector('.time-filter-tab')) {
+      // If we're on the expenses page
+      updateExpensesView()
+    } else {
+      // If we're on the home page
+      renderTodayExpenses()
+    }
+  }
+}
+
+// Legacy function - now replaced by the new filtering system
+// Kept for backwards compatibility
+async function renderExpensesElegant() {
+  // Redirect to the new system
+  if (document.querySelector('.time-filter-tab')) {
+    updateExpensesView()
+  }
+}
+
+// On load, call renderNav() and renderForm() for Home as default
+renderNav()
+renderForm()
+if (!getGeminiKey()) showGeminiKeyPopup(false)

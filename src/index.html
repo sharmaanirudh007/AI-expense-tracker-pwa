@@ -4,10 +4,20 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
+    <!-- Content Security Policy to allow Google APIs - expanded to include all needed domains -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://*.google.com https://*.googleapis.com https://apis.google.com https://accounts.google.com 'unsafe-inline' 'unsafe-eval' blob:; connect-src 'self' https://*.googleapis.com https://*.google.com https://www.googleapis.com https://apis.google.com https://accounts.google.com https://content.googleapis.com https://generativelanguage.googleapis.com; style-src 'self' 'unsafe-inline'; frame-src https://accounts.google.com https://content.googleapis.com https://*.google.com https://*.gstatic.com; img-src 'self' https://lh3.googleusercontent.com https://*.google.com https://*.gstatic.com data:;">
+    <title>AI Expense Tracker</title>
   </head>
   <body>
     <div id="app"></div>
+    <!-- Preload Google APIs -->
+    <script>
+      // This ensures the script loading doesn't block rendering and improves CSP compatibility
+      window.onload = function() {
+        // We're not loading scripts here, but indicating that we'll load them when needed
+        console.log('App ready for Google API initialization when required');
+      }
+    </script>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

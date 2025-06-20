@@ -5,7 +5,20 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1alpha/models
 
 export async function parseExpenseWithGemini(text, apiKey) {
   const today = new Date().toISOString().slice(0, 10)
-  const prompt = `You are an assistant that extracts structured data from text related to expenses.\nExtract amount (number), category (string) (if item is provided here instead of general category infer it yourself), description (original input), and date in YYYY-MM-DD format.\nIf the date is relative (like 'yesterday', 'today', 'last Sunday'), convert it based on today's date. Make sure all letters should be smallcase.\nToday's date is ${today}.\n\nText: "${text}"\nOutput:`
+  const prompt = `You are an expert assistant for extracting structured expense data from user input. Your job is to return a single JSON object with the following fields:
+
+- amount (number): The expense amount. Always extract as a number.
+- category (string): The most relevant category for the expense. If only an item is mentioned, infer the general category (e.g., 'tea' → 'beverage').
+- description (string): The original input text, or a concise summary if possible.
+- date (string, YYYY-MM-DD): The date of the expense. If the input uses a relative date (like 'yesterday', 'today', 'last Sunday'), convert it to the correct YYYY-MM-DD format based on today's date (${today}).
+
+Guidelines:
+- All values must be in lowercase.
+- If a value is missing or ambiguous, make your best guess.
+- Output only the JSON object, nothing else.
+
+Text: "${text}"
+Output:`
 
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }]

@@ -3,14 +3,7 @@ import { addExpense, getAllExpenses, getExpense, deleteExpense as dbDeleteExpens
 import { parseExpenseWithGemini } from './gemini.js'
 import { analyzeExpensesWithGemini, runSQLOnExpenses } from './analyze.js'
 import alasql from 'alasql'
-import { applyCspPolyfills } from './csp-polyfill.js'
-
-// Import the direct Google API implementations (CSP-friendly)
-import * as GoogleAuth from './google-auth-direct.js'
-import * as GoogleDrive from './google-drive-direct.js'
-
-// Apply CSP polyfills before initializing the app
-applyCspPolyfills()
+import { signInGoogle, isSignedIn, uploadToDrive, pickAndDownloadFromDrive } from './googleDrive.js'
 
 const app = document.querySelector('#app')
 
@@ -47,7 +40,6 @@ function renderNav() {
         <div id="google-account-status"></div>
         <button id="sync-drive" style="display:block;width:100%;margin-bottom:0.5rem;text-align:left;">📤 Save to Drive</button>
         <button id="load-drive" style="display:block;width:100%;margin-bottom:0.5rem;text-align:left;">📥 Load from Drive</button>
-        <button id="test-csp-btn" style="display:block;width:100%;margin-bottom:0.5rem;text-align:left;">🔒 Test Google API</button>
         <button id="gemini-key-btn" style="display:block;width:100%;text-align:left;">🔑 Gemini API Key</button>
       </div>
     </header>
@@ -75,8 +67,6 @@ function renderNav() {
     // Attach Drive button handlers
     document.getElementById('sync-drive').onclick = handleDriveSync
     document.getElementById('load-drive').onclick = handleDriveLoad
-    // Test CSP button
-    document.getElementById('test-csp-btn').onclick = testGoogleApiConnection
     // Gemini key button
     const geminiKey = getGeminiKey()
     const geminiBtn = document.getElementById('gemini-key-btn')
@@ -90,204 +80,55 @@ function renderNav() {
 
 function renderGoogleAccountStatus() {
   const statusDiv = document.getElementById('google-account-status')
-  const isSignedIn = GoogleAuth.isAuthenticated()
-  
-  if (isSignedIn) {
-    statusDiv.innerHTML = `
-      <div style="margin-bottom:0.5rem;color:#4caf50;">✓ Signed in to Google</div>
-      <button id="google-signout-btn" style="display:block;width:100%;margin-bottom:0.5rem;text-align:left;">🚪 Sign out</button>
-    `
-    document.getElementById('google-signout-btn').onclick = () => {
-      GoogleAuth.signOut()
-      renderGoogleAccountStatus()
-      showNotification('Signed out of Google successfully')
+  isSignedIn().then(signedIn => {
+    if (signedIn) {
+      statusDiv.innerHTML = `
+        <div style="margin-bottom:0.5rem;color:#4caf50;">✓ Signed in to Google</div>
+      `
+    } else {
+      statusDiv.innerHTML = `
+        <button id="google-signin-btn" style="display:block;width:100%;margin-bottom:0.5rem;text-align:left;">🔑 Sign in to Google</button>
+      `
+      document.getElementById('google-signin-btn').onclick = signInGoogle
     }
-  } else {
-    statusDiv.innerHTML = `
-      <button id="google-signin-btn" style="display:block;width:100%;margin-bottom:0.5rem;text-align:left;">🔑 Sign in to Google</button>
-    `
-    document.getElementById('google-signin-btn').onclick = async () => {
-      try {
-        await GoogleAuth.authenticate()
-        renderGoogleAccountStatus()
-        showNotification('Signed in to Google successfully')
-      } catch (error) {
-        console.error('Google sign-in error:', error)
-        showNotification(`Sign-in failed: ${error.message || 'Unknown error'}`)
-      }
-    }
-  }
+  })
 }
 
 async function handleDriveSync() {
-  // Create loading indicator
-  const loader = document.createElement('div');
-  loader.className = 'loading-overlay';
-  loader.id = 'drive-sync-loader';
-  loader.innerHTML = `
-    <div class="loading-spinner"></div>
-    <div class="loading-text">Saving to Google Drive...</div>
-  `;
-  document.body.appendChild(loader);
-  
   try {
-    // Get expenses to save
-    const expenses = await getAllExpenses();
+    const expenses = await getAllExpenses()
     if (!expenses.length) {
-      removeLoaderSafely();
-      showNotification('No expenses to sync');
-      return;
+      showNotification('No expenses to sync')
+      return
     }
-    
-    // Generate a filename with timestamp
-    const now = new Date();
-    const filename = `expenses_backup_${now.toISOString().split('T')[0]}.json`;
-    
-    // Convert expenses array to JSON string
-    const content = JSON.stringify(expenses, null, 2);
-    
-    // Make sure user is authenticated - this will trigger auth flow if needed
-    if (!GoogleAuth.isAuthenticated()) {
-      loader.querySelector('.loading-text').textContent = 'Signing in to Google...';
-      try {
-        await GoogleAuth.authenticate();
-      } catch (authError) {
-        removeLoaderSafely();
-        if (authError.message.includes('cancelled') || authError.message.includes('closed')) {
-          showNotification('Sign-in cancelled. Please try again.');
-        } else {
-          showNotification(`Authentication error: ${authError.message}`);
-        }
-        return;
-      }
+    const signedIn = await isSignedIn()
+    if (!signedIn) {
+      await signInGoogle()
     }
-    
-    // Update loading text
-    loader.querySelector('.loading-text').textContent = 'Uploading to Google Drive...';
-    
-    // Upload to Drive
-    try {
-      await GoogleDrive.uploadFile(filename, content);
-      removeLoaderSafely();
-      renderGoogleAccountStatus(); // Refresh account status
-      showNotification('Expenses saved to Google Drive!');
-    } catch (uploadErr) {
-      removeLoaderSafely();
-      
-      // Handle various error types
-      if (uploadErr.message.includes('Authentication')) {
-        showNotification('Authentication error. Please try again.');
-      } else {
-        showNotification(uploadErr.message || 'Failed to upload to Google Drive');
-      }
-    }
+    await uploadToDrive(expenses)
+    showNotification('Expenses saved to Google Drive!')
   } catch (err) {
-    console.error('Drive sync error:', err);
-    removeLoaderSafely();
-    showNotification(`Error: ${err.message || 'Failed to save to Google Drive'}`);
-  }
-  
-  // Helper function to safely remove the loader
-  function removeLoaderSafely() {
-    const existingLoader = document.getElementById('drive-sync-loader');
-    if (existingLoader) {
-      document.body.removeChild(existingLoader);
-    }
+    showNotification('Error: ' + err.message)
   }
 }
 
 async function handleDriveLoad() {
-  // Create loading indicator
-  const loader = document.createElement('div');
-  loader.className = 'loading-overlay';
-  loader.id = 'drive-load-loader';
-  loader.innerHTML = `
-    <div class="loading-spinner"></div>
-    <div class="loading-text">Connecting to Google Drive...</div>
-  `;
-  document.body.appendChild(loader);
-  
   try {
-    // Make sure user is authenticated - this will trigger auth flow if needed
-    if (!GoogleAuth.isAuthenticated()) {
-      // Update loading text
-      const textElement = loader.querySelector('.loading-text');
-      if (textElement) {
-        textElement.textContent = 'Signing in to Google...';
-      }
-      
-      try {
-        await GoogleAuth.authenticate();
-      } catch (authError) {
-        removeLoaderSafely();
-        if (authError.message.includes('cancelled') || authError.message.includes('closed')) {
-          showNotification('Sign-in cancelled. Please try again.');
-        } else {
-          showNotification(`Authentication error: ${authError.message}`);
-        }
-        return;
-      }
-      
-      // Update Google Account Status display
-      renderGoogleAccountStatus();
+    const signedIn = await isSignedIn()
+    if (!signedIn) {
+      await signInGoogle()
     }
-    
-    // Update loading status
-    const textElement = loader.querySelector('.loading-text');
-    if (textElement) {
-      textElement.textContent = 'Fetching files from Drive...';
-    }
-    
-    // Pick and download expenses using our direct API implementation
-    const expenses = await GoogleDrive.pickAndDownloadFile();
-    
+    const expenses = await pickAndDownloadFromDrive()
     if (expenses && expenses.length) {
-      // Update loading status
-      if (textElement) {
-        textElement.textContent = `Importing ${expenses.length} expenses...`;
-      }
-      
       // Add all expenses to local DB
       for (const expense of expenses) {
-        await addExpense(expense);
+        await addExpense(expense)
       }
-      
-      // Remove loading indicator and show success
-      removeLoaderSafely();
-      showNotification(`Loaded ${expenses.length} expenses!`);
-      renderTodayExpenses();
-    } else {
-      // No expenses or user canceled
-      removeLoaderSafely();
-      if (expenses) { // Empty array - no expenses selected
-        showNotification('No expenses loaded. Operation canceled.');
-      } else {
-        // null result means error or cancel
-        showNotification('No file was selected or an error occurred.');
-      }
+      showNotification(`Loaded ${expenses.length} expenses!`)
+      renderTodayExpenses()
     }
   } catch (err) {
-    console.error('Drive load error:', err);
-    
-    // Ensure loader is removed in all error cases
-    removeLoaderSafely();
-    
-    // Handle errors with more helpful messages
-    if (err.message.includes('Authentication')) {
-      showNotification('Authentication error. Please try again.');
-    } else if (err.message.includes('No backup files found')) {
-      showNotification('No backup files found in your Google Drive.');
-    } else {
-      showNotification(`Error: ${err.message || 'Failed to load from Google Drive'}`);
-    }
-  }
-  
-  // Helper function to safely remove the loader
-  function removeLoaderSafely() {
-    const existingLoader = document.getElementById('drive-load-loader');
-    if (existingLoader) {
-      document.body.removeChild(existingLoader);
-    }
+    showNotification('Error: ' + err.message)
   }
 }
 
@@ -1108,113 +949,6 @@ async function renderExpensesElegant() {
   // Redirect to the new system
   if (document.querySelector('.time-filter-tab')) {
     updateExpensesView()
-  }
-}
-
-// Function to test Google API connection and CSP compliance
-async function testGoogleApiConnection() {
-  // Create loading indicator
-  const loader = document.createElement('div');
-  loader.className = 'loading-overlay';
-  loader.id = 'csp-test-loader';
-  loader.innerHTML = `
-    <div class="loading-spinner"></div>
-    <div class="loading-text">Testing Google API connection...</div>
-  `;
-  document.body.appendChild(loader);
-
-  try {
-    // First check if we're already authenticated
-    let isAuthed = GoogleAuth.isAuthenticated();
-    
-    // If not, try to authenticate
-    if (!isAuthed) {
-      loader.querySelector('.loading-text').textContent = 'Starting authentication flow...';
-      await GoogleAuth.authenticate();
-      isAuthed = GoogleAuth.isAuthenticated();
-    }
-    
-    // Test if we can list files
-    if (isAuthed) {
-      loader.querySelector('.loading-text').textContent = 'Testing Drive API access...';
-      try {
-        await GoogleDrive.listFiles({ maxResults: 1 });
-      } catch (apiError) {
-        throw new Error(`API test failed: ${apiError.message}`);
-      }
-    } else {
-      throw new Error('Authentication failed or was cancelled');
-    }
-    
-    // Update Google Account Status display
-    renderGoogleAccountStatus();
-    
-    // Create a feedback dialog
-    const feedbackDiv = document.createElement('div');
-    feedbackDiv.className = 'modal-overlay';
-    feedbackDiv.id = 'csp-test-feedback';
-    feedbackDiv.innerHTML = `
-      <div class="modal-content" style="max-width: 500px;">
-        <h3>CSP Test Results</h3>
-        <div id="csp-test-results" style="margin: 1rem 0; padding: 1rem; background: #333; border-radius: 4px; max-height: 300px; overflow-y: auto;">
-          <p>✅ Successfully loaded Google API</p>
-          <p>✅ Authentication successful</p>
-          <p>✅ Drive API access working</p>
-          <p>✅ CSP-compatible implementation is working</p>
-          <p><strong>All Google Drive operations should now work properly!</strong></p>
-        </div>
-        <div class="modal-actions">
-          <button id="close-csp-test" style="padding:0.5rem 1rem;background:#4caf50;border:none;border-radius:4px;color:white;cursor:pointer;">Close</button>
-        </div>
-      </div>
-    `;
-    
-    // Remove loader and show feedback
-    const existingLoader = document.getElementById('csp-test-loader');
-    if (existingLoader) {
-      document.body.removeChild(existingLoader);
-    }
-    
-    document.body.appendChild(feedbackDiv);
-    document.getElementById('close-csp-test').onclick = () => {
-      const feedback = document.getElementById('csp-test-feedback');
-      if (feedback) document.body.removeChild(feedback);
-    };
-    
-  } catch (error) {
-    console.error('Google API test failed:', error);
-    
-    // Create an error feedback dialog
-    const errorDiv = document.createElement('div');
-    errorDiv.className = 'modal-overlay';
-    errorDiv.id = 'csp-test-error';
-    errorDiv.innerHTML = `
-      <div class="modal-content" style="max-width: 500px;">
-        <h3>Google API Test Results</h3>
-        <div id="csp-test-results" style="margin: 1rem 0; padding: 1rem; background: #333; border-radius: 4px; max-height: 300px; overflow-y: auto;">
-          <p>❌ Google API test encountered an issue</p>
-          <p>Error: ${error.message || 'Unknown error'}</p>
-          ${error.message.includes('cancelled') ? 
-            '<p>It looks like you cancelled the sign-in process. Please try again if you want to use Google Drive features.</p>' : 
-            '<p>Please make sure you have the <code>google-redirect.html</code> file in your project root. This file is required for Google authentication to work with CSP restrictions.</p>'}
-        </div>
-        <div class="modal-actions">
-          <button id="close-csp-test-error" style="padding:0.5rem 1rem;background:#666;border:none;border-radius:4px;color:white;cursor:pointer;">Close</button>
-        </div>
-      </div>
-    `;
-    
-    // Remove loader and show error feedback
-    const existingLoader = document.getElementById('csp-test-loader');
-    if (existingLoader) {
-      document.body.removeChild(existingLoader);
-    }
-    
-    document.body.appendChild(errorDiv);
-    document.getElementById('close-csp-test-error').onclick = () => {
-      const errorFeedback = document.getElementById('csp-test-error');
-      if (errorFeedback) document.body.removeChild(errorFeedback);
-    };
   }
 }
 

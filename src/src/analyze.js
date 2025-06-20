@@ -8,7 +8,25 @@ export async function analyzeExpensesWithGemini(query, apiKey) {
   const today = new Date().toISOString().slice(0, 10)
   const expenses = await getAllExpenses()
   const schema = `Table: expenses\nColumns:\n- id (INTEGER, PRIMARY KEY)\n- date (TEXT, format 'YYYY-MM-DD')\n- category (TEXT)\n- amount (REAL)\n- description (TEXT)\n- created_at (TEXT, format 'YYYY-MM-DD')`
-  const prompt = `You are an expert SQLite assistant. Your task is to convert a natural language question into a single, executable SQLite query for a personal expense tracker.\ncreated_at is when the record is created. Infer value for date from prompt. I might ask question based on description.\nDatabase Schema:\n${schema}\nToday's date is ${today}.\nConvert the following natural language question into a syntactically correct SQLite query. Only output the SQL query and nothing else.\n\nQuestion: "${query}"\nSQL Query:`
+  const prompt = `You are an expert SQLite assistant for a personal expense tracker. Your job is to convert a user's natural language question into a single, executable SQLite query.
+
+- The table is called 'expenses'.
+- The 'created_at' column is the record creation date.
+- The 'date' column is the actual expense date (infer from prompt if needed).
+- If the question does not specify a date, day, or reference like 'today', generate a query for all available data (no date filter).
+- The 'category' and 'description' columns both contain important context; always check both for relevant information when inferring or filtering.
+- If a question refers to a category, also check if the description contains similar or related terms.
+- Do not rely solely on category; use both category and description for best results.
+- All values in the SQL query (such as category, description, etc.) should be in lowercase.
+- Today's date is ${today}.
+
+Database Schema:
+${schema}
+
+Convert the following natural language question into a syntactically correct, efficient SQLite query. Only output the SQL query and nothing else.
+
+Question: "${query}"
+SQL Query:`
 
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }]

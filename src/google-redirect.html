@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Google Authentication</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #232526;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s linear infinite;
+      margin-top: 2rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .container {
+      text-align: center;
+      max-width: 500px;
+      padding: 2rem;
+    }
+    .result {
+      margin-top: 2rem;
+      padding: 1rem;
+      background: rgba(0,0,0,0.2);
+      border-radius: 8px;
+      display: none;
+    }
+    button {
+      margin-top: 1rem;
+      padding: 0.5rem 1.5rem;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .error {
+      background: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Google Authentication</h1>
+    <p>Processing your sign in. Please wait...</p>
+    <div class="spinner"></div>
+    <div id="result" class="result"></div>
+  </div>
+  
+  <script type="module">
+    // Google Drive API Redirect Handler - CSP-Compatible Version
+    // This code handles Google OAuth redirects without relying on iframes
+
+    /**
+     * Function to extract parameters from URL.
+     * Handles both hash fragment and query parameters.
+     */
+    function extractParams() {
+      const hash = window.location.hash.substring(1);
+      const query = window.location.search.substring(1);
+      const paramsString = hash || query;
+      
+      const params = {};
+      paramsString.split('&').forEach(pair => {
+        const [key, value] = pair.split('=');
+        if (key && value) {
+          params[decodeURIComponent(key)] = decodeURIComponent(value);
+        }
+      });
+      
+      return params;
+    }
+
+    /**
+     * Displays authentication result to the user.
+     * @param {string} message - The message to display
+     * @param {boolean} isError - Whether this is an error message
+     */
+    function showAuthResult(message, isError = false) {
+      const resultElem = document.getElementById('result');
+      resultElem.textContent = message;
+      resultElem.className = isError ? 'result error' : 'result';
+      resultElem.style.display = 'block';
+      
+      document.querySelector('.spinner').style.display = 'none';
+      document.querySelector('p').textContent = isError ? 'Authentication Failed' : 'Authentication Successful';
+      
+      const closeButton = document.createElement('button');
+      closeButton.textContent = 'Close Window';
+      closeButton.onclick = () => window.close();
+      resultElem.appendChild(closeButton);
+    }
+
+    /**
+     * Main handler for Google OAuth redirects.
+     * Processes tokens and communicates with the parent application.
+     */
+    function handleGoogleRedirect() {
+      try {
+        const params = extractParams();
+        console.log('Checking OAuth redirect parameters');
+        
+        // Check if this is an OAuth response
+        if (params.access_token || params.code || params.error) {
+          console.log('OAuth redirect detected');
+          
+          // Store token and related data if available
+          if (params.access_token) {
+            const tokenData = {
+              access_token: params.access_token,
+              token_type: params.token_type || 'Bearer',
+              expires_in: parseInt(params.expires_in) || 3600,
+              scope: params.scope || '',
+              timestamp: Date.now()
+            };
+            
+            // Store complete token info
+            localStorage.setItem('google_token', JSON.stringify(tokenData));
+            console.log('Access token stored in local storage');
+            
+            // Display success message to user
+            showAuthResult('Authentication successful! You can close this window and return to the app.');
+          }
+          
+          // Handle errors
+          if (params.error) {
+            console.error('OAuth error:', params.error);
+            localStorage.setItem('google_auth_error', JSON.stringify({
+              error: params.error,
+              error_description: params.error_description || '',
+              timestamp: Date.now()
+            }));
+            
+            // Display error message to user
+            showAuthResult(`Authentication failed: ${params.error_description || params.error}`, true);
+          }
+          
+          // Clean up URL to remove sensitive parameters
+          const redirectUrl = window.location.origin + window.location.pathname;
+          window.history.replaceState({}, document.title, redirectUrl);
+          
+          // Notify parent window if this is in a popup
+          if (window.opener && !window.opener.closed) {
+            try {
+              if (params.access_token) {
+                window.opener.postMessage({
+                  type: 'GOOGLE_AUTH_SUCCESS',
+                  token: params.access_token,
+                  expires_in: params.expires_in,
+                  token_type: params.token_type,
+                  scope: params.scope
+                }, window.location.origin);
+              } else if (params.error) {
+                window.opener.postMessage({
+                  type: 'GOOGLE_AUTH_ERROR',
+                  error: params.error,
+                  error_description: params.error_description
+                }, window.location.origin);
+              }
+              // Close window automatically after a short delay
+              setTimeout(() => window.close(), 2000);
+            } catch (err) {
+              console.error('Error posting message to opener:', err);
+              showAuthResult(`Error communicating with main window: ${err.message}. Please close this window and try again.`, true);
+            }
+          }
+        } else {
+          console.log('No OAuth parameters detected.');
+          showAuthResult('No authentication parameters detected. This page should only be accessed during the Google sign-in process.', true);
+        }
+      } catch (error) {
+        console.error('Error handling redirect:', error);
+        showAuthResult(`An error occurred: ${error.message}`, true);
+      }
+    }
+
+    // Run redirect handler when page loads
+    window.addEventListener('DOMContentLoaded', handleGoogleRedirect);
+  </script>
+</body>
+</html>
