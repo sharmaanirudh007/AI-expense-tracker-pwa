@@ -1,0 +1,89 @@
+.analyze-result-block {
+  background: #232323;
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.analyze-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+}
+.analyze-table th, .analyze-table td {
+  border: 1px solid #444;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+.analyze-table th {
+  background: #333;
+  color: #fff;
+}
+.analyze-table td {
+  background: #292929;
+}
+.analyze-no-results {
+  color: #ffb347;
+  font-weight: bold;
+  padding: 0.5rem 0;
+}
+.analyze-value {
+  color: #4caf50;
+  font-size: 1.5em;
+  font-weight: bold;
+  padding: 0.5rem 0;
+}
+.tabs {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.tab-btn {
+  background: #232323;
+  color: #fff;
+  border: none;
+  border-radius: 6px 6px 0 0;
+  padding: 0.5rem 1.5rem;
+  font-size: 1.1em;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s;
+}
+.tab-btn:hover, .tab-btn.active {
+  background: #4caf50;
+  color: #fff;
+}
+#summary-chart {
+  margin-bottom: 1.5rem;
+  background: #232323;
+  border-radius: 8px;
+  padding: 1rem;
+}
+.main-nav {
+  display: flex;
+  gap: 1.5rem;
+  background: #181818;
+  padding: 1rem 2rem;
+  border-radius: 0 0 10px 10px;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+.main-nav button {
+  background: #232323;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1.5rem;
+  font-size: 1.1em;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.2s;
+}
+.main-nav button:hover, .main-nav button.active {
+  background: #4caf50;
+  color: #fff;
+}
+#page-content {
+  max-width: 900px;
+  margin: auto;
+}
