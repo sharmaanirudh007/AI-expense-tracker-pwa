@@ -7,8 +7,54 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1alpha/models
 export async function analyzeExpensesWithGemini(query, apiKey) {
   const today = new Date().toISOString().slice(0, 10)
   const expenses = await getAllExpenses()
-  const schema = `Table: expenses\nColumns:\n- id (INTEGER, PRIMARY KEY)\n- date (TEXT, format 'YYYY-MM-DD')\n- category (TEXT)\n- amount (REAL)\n- description (TEXT)\n- created_at (TEXT, format 'YYYY-MM-DD')`
-  const prompt = `You are an expert SQLite assistant. Your task is to convert a natural language question into a single, executable SQLite query for a personal expense tracker.\ncreated_at is when the record is created. Infer value for date from prompt. I might ask question based on description.\nDatabase Schema:\n${schema}\nToday's date is ${today}.\nConvert the following natural language question into a syntactically correct SQLite query. Only output the SQL query and nothing else.\n\nQuestion: "${query}"\nSQL Query:`
+  const schema = `
+    Table: expenses
+    Columns:
+    - id (INTEGER, PRIMARY KEY)
+    - date (TEXT, format 'YYYY-MM-DD')
+    - category (TEXT)
+    - amount (REAL)
+    - description (TEXT)
+    - created_at (TEXT, format 'YYYY-MM-DD')
+  `
+
+  const prompt = `
+    You are a world-class SQLite expert specializing in converting natural language questions into precise, executable SQL queries for an expense tracking application.
+
+    **Your Task:**
+    Given a user's question and the database schema, generate a single, valid SQLite query to answer the question.
+
+    **Database Schema:**
+    ${schema}
+
+    **Important Rules:**
+    1.  **Query Only:** Your output must be ONLY the raw SQL query. No explanations, no comments, no markdown, no "SQL Query:".
+    2.  **Date Handling:**
+        - Today's date is: ${today}.
+        - Use SQLite date functions for any date-based questions (e.g., date('now'), strftime).
+        - The 'date' column is the primary source for expense dates. 'created_at' is for record tracking.
+    3.  **Case-Insensitive Search:** For text searches on 'description' or 'category', use the LOWER() function and LIKE operator for case-insensitive matching (e.g., LOWER(description) LIKE '%tea%').
+    4.  **Aggregation:** When asked for a total, sum, average, etc., use the appropriate aggregate function (e.g., SUM(amount)). If the result of an aggregation is NULL (e.g., no matching records), the query should return 0. Use COALESCE(SUM(amount), 0).
+
+    **Examples:**
+
+    *   **Question:** "How much did I spend on food this month?"
+        **SQL Query:** SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE LOWER(category) = 'food' AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now');
+
+    *   **Question:** "what did I spend on yesterday"
+        **SQL Query:** SELECT description, amount FROM expenses WHERE date = date('now', '-1 day');
+
+    *   **Question:** "total spending in january"
+        **SQL Query:** SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE strftime('%Y-%m', date) = '${new Date().getFullYear()}-01';
+
+    *   **Question:** "show all shopping expenses"
+        **SQL Query:** SELECT date, description, amount FROM expenses WHERE LOWER(category) = 'shopping' ORDER BY date DESC;
+
+    **User's Question:**
+    "${query}"
+
+    **SQL Query:**
+  `
 
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }]

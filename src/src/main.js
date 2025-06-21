@@ -1,9 +1,9 @@
 import './style.css'
-import { addExpense, getAllExpenses } from './db.js'
+import { addExpense, getAllExpenses, clearExpenses } from './db.js'
 import { parseExpenseWithGemini } from './gemini.js'
 import { analyzeExpensesWithGemini, runSQLOnExpenses } from './analyze.js'
 import alasql from 'alasql'
-import { signInGoogle, isSignedIn, uploadToDrive, pickAndDownloadFromDrive } from './googleDrive.js'
+import { signInGoogle, isSignedIn, uploadToDrive, pickAndDownloadFromDrive, trySilentSignIn } from './googleDrive.js'
 
 const app = document.querySelector('#app')
 
@@ -62,6 +62,60 @@ function setupOnScreenLogger() {
   };
 }
 
+function showNotification(message, type = 'success') { // type: 'success', 'error', or 'info'
+  const notification = document.createElement('div');
+  notification.textContent = message;
+
+  let backgroundColor;
+  switch (type) {
+    case 'error':
+      backgroundColor = '#f44336'; // Red
+      break;
+    case 'info':
+      backgroundColor = '#2196F3'; // Blue
+      break;
+    case 'success':
+    default:
+      backgroundColor = '#4CAF50'; // Green
+      break;
+  }
+
+  notification.style = `
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    color: white;
+    background-color: ${backgroundColor};
+    z-index: 1001;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    text-align: center;
+  `;
+
+  document.body.appendChild(notification);
+
+  // Animate in
+  setTimeout(() => {
+    notification.style.opacity = '1';
+    notification.style.transform = 'translateX(-50%) translateY(-10px)';
+  }, 10);
+
+  // Animate out and remove
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    notification.style.transform = 'translateX(-50%) translateY(0)';
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
+        document.body.removeChild(notification);
+      }
+    }, 300);
+  }, 4000); // 4 seconds
+}
+
 function getGeminiKey() {
   return localStorage.getItem('gemini_api_key') || ''
 }
@@ -101,6 +155,41 @@ function showGeminiKeyPopup(force = false) {
     if (force) return
     document.body.removeChild(popup)
   }
+}
+
+function showExpenseConfirmationPopup(expense, onConfirm) {
+  if (document.getElementById('expense-confirm-popup')) return;
+  const popup = document.createElement('div');
+  popup.id = 'expense-confirm-popup';
+  popup.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  
+  const formattedAmount = `₹${expense.amount.toFixed(2)}`;
+  const formattedDate = new Date(expense.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+
+  popup.innerHTML = `
+    <div style="background:#333; color: #fff; padding:2rem;border-radius:10px;min-width:300px;max-width:90vw;display:flex;flex-direction:column;align-items:flex-start;gap:1rem; border: 1px solid #444;">
+      <h2 style="align-self:center; margin:0 0 1rem 0;">Confirm Expense</h2>
+      <p style="margin:0;"><strong>Description:</strong> ${expense.description}</p>
+      <p style="margin:0;"><strong>Amount:</strong> ${formattedAmount}</p>
+      <p style="margin:0;"><strong>Category:</strong> ${expense.category}</p>
+      <p style="margin:0;"><strong>Date:</strong> ${formattedDate}</p>
+      <div style="display:flex;gap:1rem;margin-top:1rem;width:100%;justify-content:flex-end;">
+        <button id="cancel-add-expense" style="background: #555; color: #fff;">Cancel</button>
+        <button id="confirm-add-expense" style="background: #4CAF50; color: #fff;">Confirm</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(popup);
+
+  document.getElementById('confirm-add-expense').onclick = () => {
+    if(document.body.contains(popup)) document.body.removeChild(popup);
+    onConfirm();
+  };
+
+  document.getElementById('cancel-add-expense').onclick = () => {
+    if(document.body.contains(popup)) document.body.removeChild(popup);
+  };
 }
 
 function renderNav() {
@@ -154,98 +243,127 @@ function renderForm() {
         date: aiExpense.date || new Date().toISOString().slice(0, 10),
         created_at: new Date().toISOString().slice(0, 10)
       }
-      await addExpense(expense)
-      renderExpenses()
-      e.target.reset()
-      document.getElementById('error-msg').textContent = ''
+      showExpenseConfirmationPopup(expense, async () => {
+        await addExpense(expense)
+        renderExpenses()
+        e.target.reset()
+        document.getElementById('error-msg').textContent = ''
+        // Automatically sync after adding an expense
+        triggerSync(false);
+      });
     } catch (err) {
       document.getElementById('error-msg').textContent = err.message
     }
   }
-  document.getElementById('sync-drive').onclick = async () => {
-    console.log('SYNC BUTTON CLICKED');
-    document.getElementById('drive-msg').textContent = 'Syncing to Google Drive...';
+  document.getElementById('sync-drive').onclick = () => triggerSync(true);
+  document.getElementById('load-drive').onclick = async () => {
+    const driveMsg = document.getElementById('drive-msg');
+    driveMsg.textContent = ''; // Clear any previous messages
+
     try {
       let signedIn = await isSignedIn();
-      console.log('isSignedIn() result:', signedIn);
       if (!signedIn) {
+        showNotification('Please sign in to Google to load from Drive.', 'info');
         await signInGoogle();
-        console.log('signInGoogle() completed');
-        // After sign-in, update the UI
         renderGoogleAccountStatus();
       }
-
-      // Re-check sign-in status before proceeding
       signedIn = await isSignedIn();
       if (!signedIn) {
-          document.getElementById('drive-msg').textContent = 'Google Sign-In is required to sync.';
-          return;
-      }
-
-      const expenses = await getAllExpenses();
-      const filename = `expenses-backup-${new Date().toISOString().slice(0,10)}.json`;
-      const fileContent = JSON.stringify(expenses, null, 2);
-
-      // Add detailed logging to check the data before upload
-      console.log('Preparing to upload to Google Drive:');
-      console.log('Filename:', filename);
-      console.log('File Content:', fileContent);
-      console.log('Number of expenses:', expenses.length);
-
-      if (!expenses || expenses.length === 0) {
-        document.getElementById('drive-msg').textContent = 'No expenses to sync.';
-        console.log('Upload cancelled: No expenses.');
+        showNotification('Google Sign-In is required to load from Drive.', 'error');
         return;
       }
 
-      let result;
-      try {
-        console.log('About to call uploadToDrive');
-        result = await uploadToDrive(filename, fileContent);
-        console.log('Google Drive upload result:', result);
-        if (result && result.id) {
-          document.getElementById('drive-msg').textContent = 'Backup uploaded to Google Drive!';
-        } else {
-          document.getElementById('drive-msg').textContent = 'Google Drive sync failed: ' + JSON.stringify(result);
-        }
-      } catch (err) {
-        console.error('Google Drive upload error:', err);
-        let errorMsg = '';
-        try {
-          errorMsg = JSON.stringify(err);
-        } catch (e) {
-          errorMsg = String(err);
-        }
-        document.getElementById('drive-msg').textContent = 'Google Drive sync failed: ' + errorMsg;
+      showNotification('Opening Google Drive file picker...', 'info');
+      const fileContent = await pickAndDownloadFromDrive();
+
+      if (fileContent === null) {
+        showNotification('File selection cancelled.', 'info');
+        return;
       }
-      console.log('isSignedIn (after upload):', await isSignedIn());
-      // Refresh the status in case it changed (e.g. token revoked)
-      renderGoogleAccountStatus();
+
+      showNotification('Restoring expenses from backup...', 'info');
+
+      const expenses = JSON.parse(fileContent);
+      if (!Array.isArray(expenses)) {
+        throw new Error("Invalid backup file format.");
+      }
+
+      await clearExpenses();
+      for (const expense of expenses) {
+        const { id, ...expenseToSave } = expense;
+        await addExpense(expenseToSave);
+      }
+
+      renderExpenses();
+      showNotification('Expenses successfully restored from Google Drive!', 'success');
+
     } catch (e) {
-      console.error('Sync handler outer catch:', e);
-      document.getElementById('drive-msg').textContent = 'Google Drive sync failed: ' + e.message;
-    }
-  }
-  document.getElementById('load-drive').onclick = async () => {
-    document.getElementById('drive-msg').textContent = 'Loading from Google Drive...';
-    try {
-        let signedIn = await isSignedIn();
-        if (!signedIn) {
-            await signInGoogle();
-            renderGoogleAccountStatus();
-        }
-        signedIn = await isSignedIn();
-        if (!signedIn) {
-            document.getElementById('drive-msg').textContent = 'Google Sign-In is required to load from Drive.';
-            return;
-        }
-        // TODO: Implement file picker and restore logic
-        document.getElementById('drive-msg').textContent = 'Loading from Google Drive... (feature coming soon)'
-    } catch (e) {
-        document.getElementById('drive-msg').textContent = 'Google Drive load failed: ' + e.message;
+      console.error('Google Drive load failed:', e);
+      showNotification(`Google Drive load failed: ${e.message}`, 'error');
     }
   }
   renderExpenses()
+}
+
+async function triggerSync(interactive = false) {
+    console.log(`triggerSync called, interactive: ${interactive}`);
+    const driveMsg = document.getElementById('drive-msg');
+    if(interactive) {
+        driveMsg.textContent = 'Syncing to Google Drive...';
+    }
+
+    try {
+        let signedIn = await isSignedIn();
+        if (!signedIn && interactive) {
+            await signInGoogle();
+            renderGoogleAccountStatus();
+            signedIn = await isSignedIn();
+        }
+
+        if (!signedIn) {
+            if(interactive) {
+                showNotification('Google Sign-In is required to sync.', 'error');
+            } else {
+                console.log("Skipping auto-sync, user not signed in.");
+            }
+            if(driveMsg) driveMsg.textContent = '';
+            return;
+        }
+
+        const expenses = await getAllExpenses();
+        if (!expenses || expenses.length === 0) {
+            if(interactive) showNotification('No expenses to sync.', 'info');
+            if(driveMsg) driveMsg.textContent = '';
+            return;
+        }
+
+        const filename = 'expenses-backup.json';
+        const fileContent = JSON.stringify(expenses, null, 2);
+
+        const result = await uploadToDrive(filename, fileContent);
+        if (result && result.id) {
+            if(interactive) {
+              showNotification('Backup uploaded to Google Drive!', 'success');
+            } else {
+              console.log("Automatic sync to Google Drive successful.");
+              showNotification('Auto-synced to Google Drive.', 'info');
+            }
+        } else {
+            const errorDetails = result ? JSON.stringify(result) : 'Unknown error';
+            if(interactive) {
+              showNotification('Google Drive sync failed: ' + errorDetails, 'error');
+            } else {
+              console.error("Automatic sync to Google Drive failed:", errorDetails);
+            }
+        }
+
+    } catch (e) {
+        console.error('Google Drive sync failed:', e);
+        if(interactive) showNotification(`Google Drive sync failed: ${e.message}`, 'error');
+    } finally {
+        if(driveMsg) driveMsg.textContent = '';
+        if(interactive) renderGoogleAccountStatus();
+    }
 }
 
 function renderAnalyzePage() {
@@ -447,7 +565,23 @@ async function renderGoogleAccountStatus() {
 }
 
 // On load, call renderNav() and renderForm() for Home as default
-setupOnScreenLogger();
-renderNav()
-renderForm()
+async function main() {
+  setupOnScreenLogger();
+  renderNav();
+  renderForm();
+
+  console.log("Attempting silent sign-in on page load...");
+  try {
+    await trySilentSignIn();
+    console.log("Silent sign-in check complete.");
+    // After attempting silent sign-in, update the google account status display
+    renderGoogleAccountStatus();
+  } catch (error) {
+    console.error("Error during silent sign-in:", error);
+    // The UI will show the default "Sign In" button, which is the correct fallback.
+  }
+}
+
+main();
+
 if (!getGeminiKey()) showGeminiKeyPopup(false)
