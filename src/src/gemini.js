@@ -67,3 +67,73 @@ export async function parseExpenseWithGemini(text, apiKey) {
     throw new Error(`Failed to parse expense with AI: ${err.message}`);
   }
 }
+
+export async function getAIInsight(expenses, apiKey) {
+  const prompt = `
+    Analyze the provided expense data and generate a single, concise, and interesting insight for the user. 
+
+    **Instructions:**
+    1.  **Be encouraging and friendly.** Frame the insight in a positive or neutral way.
+    2.  **Keep it short and scannable.** Aim for one sentence.
+    3.  **Focus on recent trends or interesting patterns.** Avoid just stating obvious totals.
+    4.  **Vary the insights.** Don't always focus on the same thing (e.g., top category).
+    5.  **If there are very few expenses, provide a simple welcome or encouragement.**
+
+    **Today's Date:** ${new Date().toISOString().slice(0, 10)}
+
+    **Expense Data (JSON):**
+    ${JSON.stringify(expenses, null, 2)}
+
+    **Example Insights:**
+    - "Your spending on Food has decreased by 20% this week. Keep it up!"
+    - "Looks like you're a fan of shopping! It's your top category this month."
+    - "You haven't logged any transport costs in the last 3 days."
+    - "Welcome! Add a few more expenses to start seeing personalized insights."
+    - "Your average daily spend is ₹350 this week."
+
+    **Your Insight (as a single string):**
+  `
+
+  try {
+    const body = {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        // Add safety settings to prevent unsafe content
+        safetySettings: [
+            { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_ONLY_HIGH' },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_ONLY_HIGH' },
+        ],
+    };
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const errorBody = await response.text();
+        console.error("Gemini API Error Response:", errorBody);
+        throw new Error(`Gemini API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+        // Clean up the response, removing potential markdown or quotes
+        return data.candidates[0].content.parts[0].text.trim().replace(/"/g, '');
+    } else {
+        console.error("Unexpected Gemini response structure for insight:", data);
+        // Check for blocked content
+        if (data?.promptFeedback?.blockReason) {
+            return "The AI couldn't generate an insight due to safety filters.";
+        }
+        return "Add some expenses to see your first AI insight!";
+    }
+
+  } catch (err) {
+    console.error('Gemini insight error:', err);
+    return "Couldn't generate an AI insight at the moment.";
+  }
+}

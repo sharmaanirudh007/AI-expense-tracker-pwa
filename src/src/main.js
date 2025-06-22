@@ -1,11 +1,27 @@
 import './style.css'
 import { addExpense, getAllExpenses, clearExpenses } from './db.js'
-import { parseExpenseWithGemini } from './gemini.js'
+import { parseExpenseWithGemini, getAIInsight } from './gemini.js'
 import { analyzeExpensesWithGemini, runSQLOnExpenses } from './analyze.js'
 import alasql from 'alasql'
 import { signInGoogle, isSignedIn, uploadToDrive, pickAndDownloadFromDrive, trySilentSignIn } from './googleDrive.js'
 
+const ICONS = {
+  home: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
+  expenses: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>',
+  analyze: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+  summary: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>',
+  settings: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'
+};
+
 const app = document.querySelector('#app')
+
+function setActiveNav(selector) {
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    const activeBtn = document.querySelector(selector);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
+}
 
 function setupOnScreenLogger() {
   const logContainer = document.createElement('div');
@@ -65,36 +81,7 @@ function setupOnScreenLogger() {
 function showNotification(message, type = 'success') { // type: 'success', 'error', or 'info'
   const notification = document.createElement('div');
   notification.textContent = message;
-
-  let backgroundColor;
-  switch (type) {
-    case 'error':
-      backgroundColor = '#f44336'; // Red
-      break;
-    case 'info':
-      backgroundColor = '#2196F3'; // Blue
-      break;
-    case 'success':
-    default:
-      backgroundColor = '#4CAF50'; // Green
-      break;
-  }
-
-  notification.style = `
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 1rem 2rem;
-    border-radius: 8px;
-    color: white;
-    background-color: ${backgroundColor};
-    z-index: 1001;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    opacity: 0;
-    transition: opacity 0.3s, transform 0.3s;
-    text-align: center;
-  `;
+  notification.className = `notification ${type}`;
 
   document.body.appendChild(notification);
 
@@ -128,15 +115,15 @@ function showGeminiKeyPopup(force = false) {
   if (document.getElementById('gemini-popup')) return
   const popup = document.createElement('div')
   popup.id = 'gemini-popup'
-  popup.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;'
+  popup.className = 'popup-overlay'
   popup.innerHTML = `
-    <div style="background:#222;padding:2rem;border-radius:10px;min-width:300px;max-width:90vw;display:flex;flex-direction:column;align-items:center;">
+    <div class="popup-content">
       <h2>Enter Gemini API Key</h2>
-      <input type="password" id="popup-gemini-key" placeholder="Gemini API Key" style="width:100%;margin-bottom:1rem;" />
-      <div id="popup-error" style="color:red;margin-bottom:1rem;"></div>
-      <div style="display:flex;gap:1rem;">
+      <input type="password" id="popup-gemini-key" placeholder="Gemini API Key" />
+      <div id="popup-error" class="popup-error"></div>
+      <div class="popup-buttons">
         <button id="save-gemini-key">Save</button>
-        <button id="close-gemini-popup">${force ? 'Close (disabled)' : 'Close'}</button>
+        <button id="close-gemini-popup" class="btn-secondary">${force ? 'Close (disabled)' : 'Close'}</button>
       </div>
     </div>
   `
@@ -161,21 +148,26 @@ function showExpenseConfirmationPopup(expense, onConfirm) {
   if (document.getElementById('expense-confirm-popup')) return;
   const popup = document.createElement('div');
   popup.id = 'expense-confirm-popup';
-  popup.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:1000;';
+  popup.className = 'popup-overlay';
   
   const formattedAmount = `₹${expense.amount.toFixed(2)}`;
   const formattedDate = new Date(expense.date).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 
   popup.innerHTML = `
-    <div style="background:#333; color: #fff; padding:2rem;border-radius:10px;min-width:300px;max-width:90vw;display:flex;flex-direction:column;align-items:flex-start;gap:1rem; border: 1px solid #444;">
-      <h2 style="align-self:center; margin:0 0 1rem 0;">Confirm Expense</h2>
-      <p style="margin:0;"><strong>Description:</strong> ${expense.description}</p>
-      <p style="margin:0;"><strong>Amount:</strong> ${formattedAmount}</p>
-      <p style="margin:0;"><strong>Category:</strong> ${expense.category}</p>
-      <p style="margin:0;"><strong>Date:</strong> ${formattedDate}</p>
-      <div style="display:flex;gap:1rem;margin-top:1rem;width:100%;justify-content:flex-end;">
-        <button id="cancel-add-expense" style="background: #555; color: #fff;">Cancel</button>
-        <button id="confirm-add-expense" style="background: #4CAF50; color: #fff;">Confirm</button>
+    <div class="popup-content" style="text-align: left;">
+      <h2>Confirm Expense</h2>
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+        <div class="expense-category-icon">${getCategoryIcon(expense.category)}</div>
+        <div>
+            <p style="margin:0; font-size: 1.2rem; font-weight: 600;">${formattedAmount}</p>
+            <p style="margin:0; color: var(--text-secondary-color);">${expense.description}</p>
+        </div>
+      </div>
+      <p><strong>Category:</strong> ${expense.category}</p>
+      <p><strong>Date:</strong> ${formattedDate}</p>
+      <div class="popup-buttons">
+        <button id="cancel-add-expense" class="btn-secondary">Cancel</button>
+        <button id="confirm-add-expense">Confirm</button>
       </div>
     </div>
   `;
@@ -194,37 +186,45 @@ function showExpenseConfirmationPopup(expense, onConfirm) {
 
 function renderNav() {
   app.innerHTML = `
+    <header class="app-header">
+      <h1>AI Expense Tracker</h1>
+      <div id="google-account-status"></div>
+    </header>
+    <main id="page-content"></main>
     <nav class="main-nav">
-      <button id="nav-home">🏠 Home</button>
-      <button id="nav-analyze">🔍 Analyze</button>
-      <button id="nav-summary">📊 Summary</button>
+      <button id="nav-home" class="nav-btn active">${ICONS.home} <span>Home</span></button>
+      <button id="nav-expenses" class="nav-btn">${ICONS.expenses} <span>Expenses</span></button>
+      <button id="nav-analyze" class="nav-btn">${ICONS.analyze} <span>Analyze</span></button>
+      <button id="nav-summary" class="nav-btn">${ICONS.summary} <span>Summary</span></button>
+      <button id="nav-settings" class="nav-btn">${ICONS.settings} <span>Settings</span></button>
     </nav>
-    <div id="page-content"></div>
   `
-  document.getElementById('nav-home').onclick = () => renderForm()
-  document.getElementById('nav-analyze').onclick = () => renderAnalyzePage()
-  document.getElementById('nav-summary').onclick = () => renderSummaryPage()
+  document.getElementById('nav-home').onclick = () => { setActiveNav('#nav-home'); renderForm(); }
+  document.getElementById('nav-expenses').onclick = () => { setActiveNav('#nav-expenses'); renderExpensesPage(); }
+  document.getElementById('nav-analyze').onclick = () => { setActiveNav('#nav-analyze'); renderAnalyzePage(); }
+  document.getElementById('nav-summary').onclick = () => { setActiveNav('#nav-summary'); renderSummaryPage(); }
+  document.getElementById('nav-settings').onclick = () => { setActiveNav('#nav-settings'); renderSettingsPage(); }
+  renderGoogleAccountStatus();
 }
 
 function renderForm() {
   document.getElementById('page-content').innerHTML = `
-    <h1>AI Expense Tracker</h1>
-    <div id="google-account-status" style="margin-bottom:1em;"></div>
-    <form id="expense-form" style="display:flex; flex-direction:column; align-items:center; gap:1rem; max-width:600px; margin:auto;">
-      <textarea id="description" placeholder="Type or paste your expense (e.g. I spent 200 on tea yesterday)" required style="width:100%; min-height:60px;"></textarea>
-      <button type="submit" style="width:100%;">Add Expense (AI)</button>
-    </form>
-    <button id="show-gemini-popup" style="margin-top:1rem;">Set Gemini API Key</button>
-    <div style="margin-top:1.5rem;">
-      <button id="sync-drive" style="background:#4285F4;color:#fff;padding:0.5rem 1.5rem;border:none;border-radius:6px;font-size:1em;">🔄 Sync with Google Drive</button>
-      <button id="load-drive" style="background:#34A853;color:#fff;padding:0.5rem 1.5rem;border:none;border-radius:6px;font-size:1em;margin-left:1rem;">⬇️ Load from Google Drive</button>
+    <div id="smart-insight-container">
+        <h2>Smart Insight</h2>
+        <div id="smart-insight-card" class="card">
+            <p>Loading your smart insight...</p>
+        </div>
     </div>
-    <div id="expenses-list" style="margin-top:2rem;"></div>
-    <div id="error-msg" style="color:red;"></div>
-    <div id="drive-msg" style="color:#4285F4;margin-top:1rem;"></div>
+    <form id="expense-form">
+      <textarea id="description" placeholder="Type or paste your expense (e.g. I spent 200 on tea yesterday)" required></textarea>
+      <button type="submit">Add Expense (AI)</button>
+    </form>
+    <div id="error-msg" class="error-message"></div>
+    <div id="recent-expenses-container">
+        <h2>Recent Activity</h2>
+        <div id="recent-expenses-list"></div>
+    </div>
   `
-  renderGoogleAccountStatus()
-  document.getElementById('show-gemini-popup').onclick = () => showGeminiKeyPopup(false)
   document.getElementById('expense-form').onsubmit = async (e) => {
     e.preventDefault()
     const text = document.getElementById('description').value
@@ -241,74 +241,102 @@ function renderForm() {
         amount: parseFloat(aiExpense.amount) || 0,
         category: aiExpense.category || 'other',
         date: aiExpense.date || new Date().toISOString().slice(0, 10),
-        created_at: new Date().toISOString().slice(0, 10)
+        created_at: new Date().toISOString()
       }
       showExpenseConfirmationPopup(expense, async () => {
         await addExpense(expense)
-        renderExpenses()
         e.target.reset()
         document.getElementById('error-msg').textContent = ''
         // Automatically sync after adding an expense
         triggerSync(false);
+        showNotification('Expense added successfully!', 'success');
+        // If user is on expenses page, refresh it
+        if (document.querySelector('#expenses-list')) {
+            renderExpenses();
+        }
+        // Refresh recent expenses on home page
+        if (document.querySelector('#recent-expenses-list')) {
+            renderRecentExpenses();
+        }
+        renderSmartInsight();
       });
     } catch (err) {
       document.getElementById('error-msg').textContent = err.message
     }
   }
-  document.getElementById('sync-drive').onclick = () => triggerSync(true);
-  document.getElementById('load-drive').onclick = async () => {
-    const driveMsg = document.getElementById('drive-msg');
-    driveMsg.textContent = ''; // Clear any previous messages
+  renderRecentExpenses();
+  renderSmartInsight();
+}
+
+async function renderSmartInsight() {
+    const insightCard = document.getElementById('smart-insight-card');
+    if (!insightCard) return;
+
+    const apiKey = getGeminiKey();
+    if (!apiKey) {
+        insightCard.innerHTML = '<p>Enter your Gemini API key in settings to get smart insights.</p>';
+        return;
+    }
 
     try {
-      let signedIn = await isSignedIn();
-      if (!signedIn) {
-        showNotification('Please sign in to Google to load from Drive.', 'info');
-        await signInGoogle();
-        renderGoogleAccountStatus();
-      }
-      signedIn = await isSignedIn();
-      if (!signedIn) {
-        showNotification('Google Sign-In is required to load from Drive.', 'error');
-        return;
-      }
-
-      showNotification('Opening Google Drive file picker...', 'info');
-      const fileContent = await pickAndDownloadFromDrive();
-
-      if (fileContent === null) {
-        showNotification('File selection cancelled.', 'info');
-        return;
-      }
-
-      showNotification('Restoring expenses from backup...', 'info');
-
-      const expenses = JSON.parse(fileContent);
-      if (!Array.isArray(expenses)) {
-        throw new Error("Invalid backup file format.");
-      }
-
-      await clearExpenses();
-      for (const expense of expenses) {
-        const { id, ...expenseToSave } = expense;
-        await addExpense(expenseToSave);
-      }
-
-      renderExpenses();
-      showNotification('Expenses successfully restored from Google Drive!', 'success');
-
-    } catch (e) {
-      console.error('Google Drive load failed:', e);
-      showNotification(`Google Drive load failed: ${e.message}`, 'error');
+        const expenses = await getAllExpenses();
+        if (expenses.length < 3) { // Don't show for very few expenses
+             insightCard.innerHTML = '<p>Add a few more expenses to unlock your first smart insight!</p>';
+             return;
+        }
+        insightCard.innerHTML = '<p>✨ Generating your smart insight...</p>';
+        const insight = await getAIInsight(expenses, apiKey);
+        insightCard.innerHTML = `<p class="insight-text">${insight}</p>`;
+    } catch (err) {
+        console.error("Failed to get AI insight:", err);
+        insightCard.innerHTML = '<p>Could not generate an insight at this time.</p>';
     }
-  }
-  renderExpenses()
+}
+
+function capitalizeWords(str) {
+  if (!str) return '';
+  return str.replace(/\b\w/g, char => char.toUpperCase());
+}
+
+async function renderRecentExpenses() {
+    const list = document.getElementById('recent-expenses-list');
+    if (!list) return;
+
+    const expenses = await getAllExpenses();
+    if (!expenses.length) {
+        list.innerHTML = '<div class="card"><p>No recent activity to show.</p></div>';
+        return;
+    }
+
+    expenses.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+    const recentExpenses = expenses.slice(0, 4);
+
+    list.innerHTML = recentExpenses.map(e => `
+        <div class="expense-item">
+          <div class="expense-item-main">
+            <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
+            <div class="expense-details">
+              <span class="expense-description">${capitalizeWords(e.description)}</span>
+              <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+            </div>
+          </div>
+          <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
+        </div>
+      `).join('');
+}
+
+async function renderExpensesPage() {
+  document.getElementById('page-content').innerHTML = `
+    <h2>My Expenses</h2>
+    <div id="expenses-list"></div>
+  `;
+  await renderExpenses();
 }
 
 async function triggerSync(interactive = false) {
     console.log(`triggerSync called, interactive: ${interactive}`);
     const driveMsg = document.getElementById('drive-msg');
-    if(interactive) {
+    if(interactive && driveMsg) {
         driveMsg.textContent = 'Syncing to Google Drive...';
     }
 
@@ -332,7 +360,7 @@ async function triggerSync(interactive = false) {
 
         const expenses = await getAllExpenses();
         if (!expenses || expenses.length === 0) {
-            if(interactive) showNotification('No expenses to sync.', 'info');
+            if(interactive && driveMsg) showNotification('No expenses to sync.', 'info');
             if(driveMsg) driveMsg.textContent = '';
             return;
         }
@@ -359,7 +387,7 @@ async function triggerSync(interactive = false) {
 
     } catch (e) {
         console.error('Google Drive sync failed:', e);
-        if(interactive) showNotification(`Google Drive sync failed: ${e.message}`, 'error');
+        if(interactive && driveMsg) showNotification(`Google Drive sync failed: ${e.message}`, 'error');
     } finally {
         if(driveMsg) driveMsg.textContent = '';
         if(interactive) renderGoogleAccountStatus();
@@ -369,11 +397,11 @@ async function triggerSync(interactive = false) {
 function renderAnalyzePage() {
   document.getElementById('page-content').innerHTML = `
     <h2>🔍 Analyze Your Expenses</h2>
-    <form id="analyze-form" style="display:flex;gap:1rem;align-items:center;">
-      <input type="text" id="analyze-query" placeholder="Ask a question (e.g., How much did I spend on tea yesterday?)" style="flex:1;" required />
+    <form id="analyze-form" class="analyze-form">
+      <input type="text" id="analyze-query" placeholder="Ask a question (e.g., How much did I spend on tea yesterday?)" required />
       <button type="submit">Analyze</button>
     </form>
-    <div id="analyze-results" style="margin-top:1rem;"></div>
+    <div id="analyze-results" class="analyze-results-container"></div>
   `
   document.getElementById('analyze-form').onsubmit = async (e) => {
     e.preventDefault()
@@ -429,7 +457,7 @@ function renderAnalyzePage() {
       document.getElementById('analyze-results').innerHTML = `
         <div class="analyze-result-block">
           ${html}
-          <div style='margin-top:0.5rem;color:#888;font-size:0.9em;'>SQL: <code>${sql}</code></div>
+          <div class='sql-query'>SQL: <code>${sql}</code></div>
         </div>
       `
     } catch (err) {
@@ -446,7 +474,7 @@ async function renderSummaryPage() {
       <button class="tab-btn" id="tab-monthly">📆 Monthly</button>
       <button class="tab-btn" id="tab-yearly">📈 Yearly</button>
     </div>
-    <div id="tab-content" style="margin-top:1.5rem;"></div>
+    <div id="tab-content" class="tab-content"></div>
   `
   document.getElementById('tab-daily').onclick = () => renderSummaryTab('daily')
   document.getElementById('tab-monthly').onclick = () => renderSummaryTab('monthly')
@@ -456,7 +484,7 @@ async function renderSummaryPage() {
 
 async function renderSummaryTab(type) {
   const content = document.getElementById('tab-content')
-  content.innerHTML = `<div id="summary-chart" style="height:300px;"></div><div id="summary-table"></div>`
+  content.innerHTML = `<div id="summary-chart" class="summary-chart"></div><div id="summary-table"></div>`
   const expenses = await getAllExpenses()
   let groups = {}
   if (type === 'daily') {
@@ -523,24 +551,65 @@ function renderChart(labels, data, type) {
   })
 }
 
+function getCategoryIcon(category) {
+    const cat = category.toLowerCase();
+    const iconClass = 'category-svg-icon';
+
+    if (cat.includes('food') || cat.includes('restaurant')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><polyline points="16 2 16 8 22 8"></polyline><path d="M4 2v20"></path><path d="M6 12H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2z"></path></svg>`;
+    }
+    if (cat.includes('transport') || cat.includes('taxi') || cat.includes('cab') || cat.includes('flight')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>`;
+    }
+    if (cat.includes('shopping') || cat.includes('apparel')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>`;
+    }
+    if (cat.includes('bills') || cat.includes('utilities') || cat.includes('rent')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
+    }
+    if (cat.includes('entertainment') || cat.includes('movie')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>`;
+    }
+    if (cat.includes('groceries')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`;
+    }
+    if (cat.includes('health') || cat.includes('pharmacy') || cat.includes('doctor')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+    }
+    // Default icon
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`;
+}
+
 async function renderExpenses() {
-  const expenses = await getAllExpenses()
-  const list = document.getElementById('expenses-list')
+  const list = document.getElementById('expenses-list');
+  if (!list) return;
+
+  const expenses = await getAllExpenses();
   if (!expenses.length) {
-    list.innerHTML = '<p>No expenses yet.</p>'
-    return
+    list.innerHTML = '<div class="card"><p>No expenses yet. Add one from the Home screen!</p></div>';
+    return;
   }
-  list.innerHTML = `
-    <h2>Expenses</h2>
-    <ul>
-      ${expenses.map(e => `<li>₹${e.amount.toFixed(2)} - ${e.category} - ${e.description} (${e.date})</li>`).join('')}
-    </ul>
-  `
+
+  expenses.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+
+  list.innerHTML = expenses.map(e => `
+    <div class="expense-item">
+      <div class="expense-item-main">
+        <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
+        <div class="expense-details">
+          <span class="expense-description">${e.description}</span>
+          <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+        </div>
+      </div>
+      <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
+    </div>
+  `).join('');
 }
 
 async function renderGoogleAccountStatus() {
   const statusDiv = document.getElementById('google-account-status')
-  statusDiv.innerHTML = 'Checking Google account...'
+  if (!statusDiv) return;
+  statusDiv.innerHTML = ''
   try {
     const { isSignedIn } = await import('./googleDrive.js')
     const signedIn = await isSignedIn()
@@ -548,27 +617,122 @@ async function renderGoogleAccountStatus() {
       const { getGoogleUserProfile, signOutGoogle } = await import('./googleDrive.js')
       const profile = await getGoogleUserProfile()
       statusDiv.innerHTML = `
-        <img src="${profile.imageUrl}" alt="Profile" style="width:24px;height:24px;border-radius:50%;vertical-align:middle;"> 
-        <span>${profile.name} (${profile.email})</span>
-        <button id="google-signout-btn" style="margin-left:1em;">Sign out</button>
+        <div class="profile-info">
+            <img src="${profile.imageUrl}" alt="Profile">
+        </div>
+        <button id="google-signout-btn" class="btn-secondary">Sign out</button>
       `
       document.getElementById('google-signout-btn').onclick = async () => {
         await signOutGoogle()
         renderGoogleAccountStatus(); // Re-render to show signed-out state
       }
     } else {
-      statusDiv.innerHTML = '<span>Not signed in to Google</span>'
+      statusDiv.innerHTML = '<button id="google-signin-btn">Sign in with Google</button>'
+      document.getElementById('google-signin-btn').onclick = async () => {
+        await signInGoogle();
+        renderGoogleAccountStatus();
+      }
     }
   } catch (e) {
-    statusDiv.innerHTML = '<span style="color:red;">Google account status error</span>'
+    statusDiv.innerHTML = '<span style="color:red;">Account status error</span>'
+    console.error(e);
   }
 }
 
+function renderSettingsPage() {
+    document.getElementById('page-content').innerHTML = `
+        <h2>Settings</h2>
+        <div class="settings-container">
+            <div class="setting-item card">
+                <h3>Gemini API Key</h3>
+                <p>Your API key is stored securely in your browser's local storage.</p>
+                <input type="password" id="gemini-key-input" value="${getGeminiKey()}">
+                <button id="save-gemini-key">Save Key</button>
+            </div>
+            <div class="setting-item card">
+                <h3>Google Drive Sync</h3>
+                <p>Backup and restore your expenses with Google Drive.</p>
+                <div class="drive-buttons">
+                    <button id="sync-drive">Sync to Drive</button>
+                    <button id="load-drive">Load from Drive</button>
+                </div>
+                <div id="drive-msg" class="drive-message"></div>
+            </div>
+             <div class="setting-item card">
+                <h3>Danger Zone</h3>
+                <p>Clear all locally stored expense data.</p>
+                <button id="clear-data-btn" class="btn-danger">Clear All Expenses</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('save-gemini-key').onclick = () => {
+        const key = document.getElementById('gemini-key-input').value;
+        setGeminiKey(key);
+        showNotification('Gemini API Key saved!', 'success');
+    };
+
+    document.getElementById('sync-drive').onclick = () => triggerSync(true);
+    document.getElementById('load-drive').onclick = async () => {
+        const driveMsg = document.getElementById('drive-msg');
+        driveMsg.textContent = ''; // Clear any previous messages
+
+        try {
+          let signedIn = await isSignedIn();
+          if (!signedIn) {
+            showNotification('Please sign in to Google to load from Drive.', 'info');
+            await signInGoogle();
+            renderGoogleAccountStatus();
+          }
+          signedIn = await isSignedIn();
+          if (!signedIn) {
+            showNotification('Google Sign-In is required to load from Drive.', 'error');
+            return;
+          }
+
+          showNotification('Opening Google Drive file picker...', 'info');
+          const fileContent = await pickAndDownloadFromDrive();
+
+          if (fileContent === null) {
+            showNotification('File selection cancelled.', 'info');
+            return;
+          }
+
+          showNotification('Restoring expenses from backup...', 'info');
+
+          const expenses = JSON.parse(fileContent);
+          if (!Array.isArray(expenses)) {
+            throw new Error("Invalid backup file format.");
+          }
+
+          await clearExpenses();
+          for (const expense of expenses) {
+            const { id, ...expenseToSave } = expense;
+            await addExpense(expenseToSave);
+          }
+          
+          showNotification('Expenses successfully restored from Google Drive!', 'success');
+
+        } catch (e) {
+          console.error('Google Drive load failed:', e);
+          showNotification(`Google Drive load failed: ${e.message}`, 'error');
+        }
+    };
+    
+    document.getElementById('clear-data-btn').onclick = async () => {
+        if (confirm('Are you sure you want to delete all your local expense data? This cannot be undone.')) {
+            await clearExpenses();
+            showNotification('All local expenses have been cleared.', 'success');
+        }
+    };
+}
+
+
 // On load, call renderNav() and renderForm() for Home as default
 async function main() {
-  setupOnScreenLogger();
+  // setupOnScreenLogger();
   renderNav();
-  renderForm();
+  await renderForm();
 
   console.log("Attempting silent sign-in on page load...");
   try {
