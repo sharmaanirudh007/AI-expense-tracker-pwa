@@ -5,6 +5,14 @@ import { analyzeExpensesWithGemini, runSQLOnExpenses } from './analyze.js'
 import alasql from 'alasql'
 import { signInGoogle, isSignedIn, uploadToDrive, pickAndDownloadFromDrive, trySilentSignIn } from './googleDrive.js'
 
+// Helper to get YYYY-MM-DD from a Date object, respecting local timezone
+function getLocalDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 const ICONS = {
   home: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
   expenses: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>',
@@ -240,7 +248,7 @@ function renderForm() {
         description: aiExpense.description || text,
         amount: parseFloat(aiExpense.amount) || 0,
         category: aiExpense.category || 'other',
-        date: aiExpense.date || new Date().toISOString().slice(0, 10),
+        date: aiExpense.date || getLocalDateString(),
         created_at: new Date().toISOString()
       }
       showExpenseConfirmationPopup(expense, async () => {
@@ -805,10 +813,11 @@ async function renderExpenses() {
   let filteredExpenses = [];
 
   const today = new Date();
+  // Set time to 0 to compare dates correctly
   today.setHours(0, 0, 0, 0);
 
   if (activeFilter === 'today') {
-    const todayDateString = today.toISOString().slice(0, 10);
+    const todayDateString = getLocalDateString(today);
     filteredExpenses = allExpenses.filter(e => e.date === todayDateString);
   } else if (activeFilter === 'this-month') {
     const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM

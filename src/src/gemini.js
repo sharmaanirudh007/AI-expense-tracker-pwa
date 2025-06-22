@@ -4,6 +4,19 @@
 const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1alpha/models/gemini-2.0-flash-001:generateContent';
 
 export async function parseExpenseWithGemini(text, apiKey) {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  const localTodayString = `${year}-${month}-${day}`;
+
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yearY = yesterday.getFullYear();
+  const monthY = String(yesterday.getMonth() + 1).padStart(2, '0');
+  const dayY = String(yesterday.getDate()).padStart(2, '0');
+  const localYesterdayString = `${yearY}-${monthY}-${dayY}`;
+
   const prompt = `
     Analyze the following text and extract the expense details into a JSON object.
 
@@ -11,16 +24,16 @@ export async function parseExpenseWithGemini(text, apiKey) {
     1.  **description**: A concise summary of the expense. If the text is a simple description like "groceries", use that directly.
     2.  **amount**: The numeric cost. Extract only the number.
     3.  **category**: Choose the most fitting category from this list: Food, Transport, Shopping, Utilities, Entertainment, Health, Education, Other.
-    4.  **date**: The date of the expense in YYYY-MM-DD format. If no date is mentioned, use today's date: ${new Date().toISOString().slice(0, 10)}.
+    4.  **date**: The date of the expense in YYYY-MM-DD format. If no date is mentioned, use today's date: ${localTodayString}.
 
     **Input Text:**
     ${text}
 
     **Examples:**
     - Text: "I spent 200 on tea yesterday"
-      JSON: {"description": "Tea", "amount": 200, "category": "Food", "date": "${new Date(Date.now() - 86400000).toISOString().slice(0, 10)}"}
+      JSON: {"description": "Tea", "amount": 200, "category": "Food", "date": "${localYesterdayString}"}
     - Text: "monthly electricity bill 5000"
-      JSON: {"description": "Monthly electricity bill", "amount": 5000, "category": "Utilities", "date": "${new Date().toISOString().slice(0, 10)}"}
+      JSON: {"description": "Monthly electricity bill", "amount": 5000, "category": "Utilities", "date": "${localTodayString}"}
     - Text: "uber to office 150 on 2nd jan"
       JSON: {"description": "Uber to office", "amount": 150, "category": "Transport", "date": "${new Date().getFullYear()}-01-02"}
 
