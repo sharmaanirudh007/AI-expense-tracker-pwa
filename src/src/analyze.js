@@ -6,6 +6,9 @@ const GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1alpha/models
 
 export async function analyzeExpensesWithGemini(query, apiKey) {
   const today = new Date().toISOString().slice(0, 10)
+  const yesterdayDate = new Date()
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+  const yesterday = yesterdayDate.toISOString().slice(0, 10)
   const expenses = await getAllExpenses()
   const schema = `
     Table: expenses
@@ -19,36 +22,51 @@ export async function analyzeExpensesWithGemini(query, apiKey) {
   `
 
   const prompt = `
-    You are a world-class SQLite expert specializing in converting natural language questions into precise, executable SQL queries for an expense tracking application.
+    You are a world-class database expert specializing in converting natural language questions into precise, executable SQL queries for an expense tracking application that uses AlaSQL.
 
     **Your Task:**
-    Given a user's question and the database schema, generate a single, valid SQLite query to answer the question.
+    First, determine if the user's question is related to analyzing their expenses based on the provided schema.
+    - If the question **is related** to expenses, generate a single, valid AlaSQL query to answer it.
+    - If the question **is not related** to expenses (e.g., "what is the capital of France?", "who are you?"), your output must be ONLY the word \`IRRELEVANT\`.
 
     **Database Schema:**
     ${schema}
 
     **Important Rules:**
-    1.  **Query Only:** Your output must be ONLY the raw SQL query. No explanations, no comments, no markdown, no "SQL Query:".
-    2.  **Date Handling:**
+    1.  **Output Format:**
+        - For relevant queries: Your output must be ONLY the raw SQL query. No explanations, no comments, no markdown.
+        - For irrelevant queries: Your output must be ONLY the word \`IRRELEVANT\`.
+    2.  **Date Handling (for AlaSQL):**
         - Today's date is: ${today}.
-        - Use SQLite date functions for any date-based questions (e.g., date('now'), strftime).
-        - The 'date' column is the primary source for expense dates. 'created_at' is for record tracking.
-    3.  **Case-Insensitive Search:** For text searches on 'description' or 'category', use the LOWER() function and LIKE operator for case-insensitive matching (e.g., LOWER(description) LIKE '%tea%').
-    4.  **Aggregation:** When asked for a total, sum, average, etc., use the appropriate aggregate function (e.g., SUM(amount)). If the result of an aggregation is NULL (e.g., no matching records), the query should return 0. Use COALESCE(SUM(amount), 0).
+        - The 'date' column is a TEXT field in 'YYYY-MM-DD' format.
+        - **DO NOT use SQLite-specific date functions like \`strftime\`, \`date\`, or \`now()\`.** AlaSQL does not support them.
+        - For date comparisons, use string manipulation with functions like \`SUBSTR\` or the \`LIKE\` operator.
+        - To get the current month, use \`SUBSTR(date, 1, 7) = '${today.slice(0, 7)}'\`.
+        - To get the current year, use \`SUBSTR(date, 1, 4) = '${today.slice(0, 4)}'\`.
+        - For "yesterday", use the provided date string: \`date = '${yesterday}'\`.
+    3.  **Case-Insensitive Search:** For text searches on 'description' or 'category', use the \`LOWER()\` function and \`LIKE\` operator for case-insensitive matching (e.g., \`LOWER(description) LIKE '%tea%'\`).
+    4.  **Aggregation:** When asked for a total, sum, average, etc., use the appropriate aggregate function (e.g., \`SUM(amount)\`). If the result of an aggregation is NULL (e.g., no matching records), the query should return 0. Use \`COALESCE(SUM(amount), 0)\`.
+    5.  **Column Aliases:** For aggregated columns (like SUM, AVG, COUNT), always use a simple, descriptive alias in \`snake_case\` (e.g., \`SELECT SUM(amount) AS total_spending\`). This is required to avoid parsing errors in the SQL engine.
 
     **Examples:**
 
     *   **Question:** "How much did I spend on food this month?"
-        **SQL Query:** SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE LOWER(category) = 'food' AND strftime('%Y-%m', date) = strftime('%Y-%m', 'now');
+        **SQL Query:** SELECT COALESCE(SUM(amount), 0) AS total_spent FROM expenses WHERE LOWER(category) = 'food' AND SUBSTR(date, 1, 7) = '${today.slice(0, 7)}';
 
     *   **Question:** "what did I spend on yesterday"
-        **SQL Query:** SELECT description, amount FROM expenses WHERE date = date('now', '-1 day');
+        **SQL Query:** SELECT description, amount FROM expenses WHERE date = '${yesterday}';
 
     *   **Question:** "total spending in january"
-        **SQL Query:** SELECT COALESCE(SUM(amount), 0) FROM expenses WHERE strftime('%Y-%m', date) = '${new Date().getFullYear()}-01';
+        **SQL Query:** SELECT COALESCE(SUM(amount), 0) AS total_spent FROM expenses WHERE SUBSTR(date, 1, 7) = '${new Date().getFullYear()}-01';
+
+    *   **Question:** "average spending on shopping"
+        **SQL Query:** SELECT COALESCE(AVG(amount), 0) AS average_spent FROM expenses WHERE LOWER(category) = 'shopping';
 
     *   **Question:** "show all shopping expenses"
         **SQL Query:** SELECT date, description, amount FROM expenses WHERE LOWER(category) = 'shopping' ORDER BY date DESC;
+
+    *   **Question:** "what is the tallest building in the world?"
+        **SQL Query:** IRRELEVANT
 
     **User's Question:**
     "${query}"
@@ -73,6 +91,11 @@ export async function analyzeExpensesWithGemini(query, apiKey) {
   if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
     sql = data.candidates[0].content.parts[0].text.trim()
   }
+
+  if (sql.toUpperCase() === 'IRRELEVANT') {
+    throw new Error("I can only answer questions about your expenses. Please try a different query.");
+  }
+
   // Remove all code block markers and newlines
   sql = sql.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim()
   // Remove any leading 'sql' or 'sqlite' and newlines
@@ -81,12 +104,12 @@ export async function analyzeExpensesWithGemini(query, apiKey) {
   while (sql.startsWith('\n')) sql = sql.slice(1).trim()
   // If the SQL is empty or not a SELECT, throw a more helpful error
   if (!sql || !/^select/i.test(sql)) {
-    throw new Error('Gemini did not return a valid SQL SELECT statement.\n\nRaw response:\n' + JSON.stringify(data, null, 2) + '\n\nExtracted SQL:\n' + sql)
+    throw new Error('Gemini did not return a valid SQL SELECT statement.\\n\\nRaw response:\\n' + JSON.stringify(data, null, 2) + '\\n\\nExtracted SQL:\\n' + sql)
   }
   // alasql requires SELECT to be uppercase and may not support single quotes for date, so fix that
   sql = sql.replace(/select/i, 'SELECT').replace(/from/i, 'FROM').replace(/where/i, 'WHERE')
   // Replace single quotes with double quotes for string literals (alasql expects double quotes)
-  sql = sql.replace(/'([^']+)'/g, '"$1"')
+  // sql = sql.replace(/'([^']+)'/g, '"$1"')
   return { sql, expenses }
 }
 
