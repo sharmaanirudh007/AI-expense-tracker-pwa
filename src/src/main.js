@@ -326,10 +326,224 @@ async function renderRecentExpenses() {
 }
 
 async function renderExpensesPage() {
+  const allExpenses = await getAllExpenses();
+  const categories = [...new Set(allExpenses.map(e => e.category))].sort();
+
+  let categoryDropdownHTML = '';
+  if (categories.length > 0) {
+      categoryDropdownHTML = `
+        <div class="dropdown-container">
+            <button id="category-dropdown-btn" class="dropdown-btn">Categories</button>
+            <div id="category-dropdown-content" class="dropdown-content">
+                <div id="category-filters">
+                    ${categories.map(c => `
+                        <label class="category-filter-label">
+                            <input type="checkbox" class="category-filter-checkbox" value="${c}" checked>
+                            ${capitalizeWords(c)}
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+        </div>
+      `;
+  }
+
+  const viewDropdownHTML = `
+    <div class="dropdown-container">
+        <button id="view-dropdown-btn" class="dropdown-btn" data-view="list">View: List</button>
+        <div id="view-dropdown-content" class="dropdown-content">
+            <a href="#" class="view-option" data-view="list">List</a>
+            <a href="#" class="view-option" data-view="category">Category</a>
+        </div>
+    </div>
+  `;
+
   document.getElementById('page-content').innerHTML = `
     <h2>My Expenses</h2>
+    <div class="expenses-controls">
+        <div class="filter-controls">
+            <button class="btn-filter active" data-filter="today">Today</button>
+            <button class="btn-filter" data-filter="this-month">This Month</button>
+            <button class="btn-filter" data-filter="specific-month">Month</button>
+            <button class="btn-filter" data-filter="custom">Custom</button>
+        </div>
+        <div class="dropdown-controls">
+            ${viewDropdownHTML}
+            ${categoryDropdownHTML}
+        </div>
+    </div>
+    <div id="specific-month-picker" class="specific-month-picker card" style="display: none;">
+        <div class="month-year-inputs">
+            <div class="input-group">
+                <label for="month-select">Month</label>
+                <select id="month-select">
+                    <option value="0">January</option>
+                    <option value="1">February</option>
+                    <option value="2">March</option>
+                    <option value="3">April</option>
+                    <option value="4">May</option>
+                    <option value="5">June</option>
+                    <option value="6">July</option>
+                    <option value="7">August</option>
+                    <option value="8">September</option>
+                    <option value="9">October</option>
+                    <option value="10">November</option>
+                    <option value="11">December</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="year-input">Year</label>
+                <input type="number" id="year-input" placeholder="YYYY" />
+            </div>
+        </div>
+        <button id="apply-month-filter">Apply</button>
+        <p id="specific-month-error" class="error-message" style="display: none;"></p>
+    </div>
+    <div id="custom-date-range-container" class="custom-date-range card" style="display:none;">
+        <div class="date-inputs-container">
+            <div class="date-input-group">
+                <label for="start-date">Start:</label>
+                <input type="date" id="start-date">
+            </div>
+            <div class="date-input-group">
+                <label for="end-date">End:</label>
+                <input type="date" id="end-date">
+            </div>
+        </div>
+        <button id="apply-custom-date">Apply</button>
+        <p id="custom-date-error" class="error-message" style="display: none;"></p>
+    </div>
     <div id="expenses-list"></div>
   `;
+
+  // --- Event Listeners ---
+
+  // Dropdown toggle logic
+  function setupDropdown(btnId, contentId) {
+      const btn = document.getElementById(btnId);
+      const content = document.getElementById(contentId);
+      if (!btn || !content) return;
+
+      btn.onclick = (e) => {
+          e.stopPropagation();
+          // Close other dropdowns
+          document.querySelectorAll('.dropdown-content.show').forEach(openDropdown => {
+              if (openDropdown.id !== contentId) {
+                  openDropdown.classList.remove('show');
+              }
+          });
+          content.classList.toggle('show');
+      };
+  }
+
+  setupDropdown('category-dropdown-btn', 'category-dropdown-content');
+  setupDropdown('view-dropdown-btn', 'view-dropdown-content');
+
+  // Close dropdowns when clicking outside
+  window.onclick = (e) => {
+      if (!e.target.matches('.dropdown-btn')) {
+          document.querySelectorAll('.dropdown-content.show').forEach(openDropdown => {
+              openDropdown.classList.remove('show');
+          });
+      }
+  };
+
+  // Date filter buttons
+  document.querySelectorAll('.btn-filter').forEach(btn => {
+    btn.onclick = (e) => {
+        document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        const filter = e.target.dataset.filter;
+        const customPicker = document.getElementById('custom-date-range-container');
+        const monthPicker = document.getElementById('specific-month-picker');
+
+        customPicker.style.display = 'none';
+        monthPicker.style.display = 'none';
+
+        if (filter === 'custom') {
+            customPicker.style.display = 'grid';
+        } else if (filter === 'specific-month') {
+            monthPicker.style.display = 'flex';
+            const now = new Date();
+            document.getElementById('month-select').value = now.getMonth();
+            document.getElementById('year-input').value = now.getFullYear();
+        } else {
+            renderExpenses();
+        }
+    };
+  });
+
+  // View selection
+  document.querySelectorAll('.view-option').forEach(option => {
+    option.onclick = (e) => {
+        e.preventDefault();
+        const selectedView = e.target.dataset.view;
+        const viewBtn = document.getElementById('view-dropdown-btn');
+        viewBtn.dataset.view = selectedView;
+        viewBtn.textContent = `View: ${capitalizeWords(selectedView)}`;
+        document.getElementById('view-dropdown-content').classList.remove('show');
+        renderExpenses();
+    };
+  });
+
+  // Category checkbox changes
+  if (categories.length > 0) {
+    document.querySelectorAll('.category-filter-checkbox').forEach(checkbox => {
+        checkbox.onchange = () => {
+            renderExpenses();
+        };
+    });
+  }
+
+  // Specific month apply
+  document.getElementById('apply-month-filter').onclick = () => {
+    const year = document.getElementById('year-input').value;
+    const errorEl = document.getElementById('specific-month-error');
+    if (!year || !/^\d{4}$/.test(year)) {
+        errorEl.textContent = 'Please enter a valid 4-digit year.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    errorEl.style.display = 'none';
+    renderExpenses();
+  };
+
+  // Custom date apply
+  document.getElementById('apply-custom-date').onclick = () => {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const errorEl = document.getElementById('custom-date-error');
+
+    if (!startDate || !endDate) {
+        errorEl.textContent = 'Please select both start and end dates.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    if (start > end) {
+        errorEl.textContent = 'Start date cannot be after end date.';
+        errorEl.style.display = 'block';
+        return;
+    }
+
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+    if (diffDays > 31) {
+        errorEl.textContent = 'The date range cannot be more than 31 days.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    
+    errorEl.textContent = '';
+    errorEl.style.display = 'none';
+    renderExpenses();
+  };
+
+  // Initial render
   await renderExpenses();
 }
 
@@ -584,26 +798,104 @@ async function renderExpenses() {
   const list = document.getElementById('expenses-list');
   if (!list) return;
 
-  const expenses = await getAllExpenses();
-  if (!expenses.length) {
-    list.innerHTML = '<div class="card"><p>No expenses yet. Add one from the Home screen!</p></div>';
+  const activeFilter = document.querySelector('.btn-filter.active')?.dataset.filter || 'today';
+  const activeView = document.getElementById('view-dropdown-btn')?.dataset.view || 'list';
+
+  const allExpenses = await getAllExpenses();
+  let filteredExpenses = [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (activeFilter === 'today') {
+    const todayDateString = today.toISOString().slice(0, 10);
+    filteredExpenses = allExpenses.filter(e => e.date === todayDateString);
+  } else if (activeFilter === 'this-month') {
+    const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
+    filteredExpenses = allExpenses.filter(e => e.date.startsWith(currentMonth));
+  } else if (activeFilter === 'specific-month') {
+    const month = document.getElementById('month-select').value;
+    const year = document.getElementById('year-input').value;
+    if (year && month) {
+        const monthString = String(parseInt(month, 10) + 1).padStart(2, '0');
+        const yearMonth = `${year}-${monthString}`;
+        filteredExpenses = allExpenses.filter(e => e.date.startsWith(yearMonth));
+    } else {
+        filteredExpenses = [];
+    }
+  } else if (activeFilter === 'custom') {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    if (startDate && endDate) {
+        filteredExpenses = allExpenses.filter(e => e.date >= startDate && e.date <= endDate);
+    } else {
+        filteredExpenses = [];
+    }
+  } else {
+      // Default to today if filter is unknown
+      const todayDateString = today.toISOString().slice(0, 10);
+      filteredExpenses = allExpenses.filter(e => e.date === todayDateString);
+  }
+
+  // Filter by category
+  const categoryFilters = document.getElementById('category-filters');
+  if (categoryFilters) {
+      const selectedCategories = [...document.querySelectorAll('.category-filter-checkbox:checked')].map(cb => cb.value);
+      if (document.querySelectorAll('.category-filter-checkbox').length > 0) {
+          filteredExpenses = filteredExpenses.filter(e => selectedCategories.includes(e.category));
+      }
+  }
+
+  if (!filteredExpenses.length) {
+    list.innerHTML = '<div class="card"><p>No expenses found for the selected filters.</p></div>';
     return;
   }
 
-  expenses.sort((a, b) => new Date(b.created_at || b.date) - new Date(a.created_at || a.date));
+  // Sort by date descending
+  filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  list.innerHTML = expenses.map(e => `
-    <div class="expense-item">
-      <div class="expense-item-main">
-        <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
-        <div class="expense-details">
-          <span class="expense-description">${e.description}</span>
-          <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+  if (activeView === 'list') {
+    list.innerHTML = filteredExpenses.map(e => `
+      <div class="expense-item">
+        <div class="expense-item-main">
+          <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
+          <div class="expense-details">
+            <span class="expense-description">${capitalizeWords(e.description)}</span>
+            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+          </div>
         </div>
+        <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
       </div>
-      <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
-    </div>
-  `).join('');
+    `).join('');
+  } else if (activeView === 'category') {
+    const expensesByCategory = groupBy(filteredExpenses, e => e.category);
+    let html = '';
+    // Sort categories alphabetically for consistent order
+    const sortedCategories = Object.keys(expensesByCategory).sort();
+
+    for (const category of sortedCategories) {
+        html += `
+            <div class="category-group card">
+                <h3 class="category-title">${capitalizeWords(category)}</h3>
+                <div class="category-expense-list">
+                ${expensesByCategory[category].map(e => `
+                    <div class="expense-item">
+                      <div class="expense-item-main">
+                         <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
+                         <div class="expense-details">
+                           <span class="expense-description">${capitalizeWords(e.description)}</span>
+                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+                         </div>
+                       </div>
+                       <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
+                    </div>
+                `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    list.innerHTML = html || '<div class="card"><p>No expenses found for the selected filter.</p></div>';
+  }
 }
 
 async function renderGoogleAccountStatus() {

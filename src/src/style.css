@@ -508,6 +508,249 @@ h2 {
     text-align: left;
 }
 
+/* Expenses Page Controls */
+.expenses-controls {
+    display: flex;
+    justify-content: center; /* Center the controls */
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.filter-controls {
+    display: flex;
+    gap: 0.5rem;
+    background-color: var(--primary-color);
+    padding: 0.5rem;
+    border-radius: var(--border-radius);
+}
+
+.btn-filter {
+    padding: 0.5rem 1rem;
+    background-color: transparent;
+    color: var(--text-secondary-color);
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+
+.btn-filter.active {
+    background-color: var(--accent-color);
+    color: white;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.dropdown-controls {
+    display: flex;
+    gap: 1rem;
+}
+
+/* Dropdown Styles */
+.dropdown-container {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-btn {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.dropdown-btn::after {
+    content: ' ▼';
+    font-size: 0.7em;
+}
+
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: var(--secondary-color);
+    min-width: 200px;
+    box-shadow: 0px 8px 16px 0px var(--shadow-dark);
+    z-index: 1;
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+    margin-top: 0.5rem;
+    right: 0; /* Align to the right */
+}
+
+.dropdown-content.show {
+    display: block;
+}
+
+.dropdown-divider {
+    height: 1px;
+    margin: 0.5rem 0;
+    overflow: hidden;
+    background-color: var(--secondary-color);
+    border-bottom: 1px solid var(--primary-color);
+}
+
+/* View Dropdown */
+#view-dropdown-content {
+    min-width: auto; /* Reset min-width to allow it to be smaller than 200px */
+    width: 100%; /* Match the width of the parent container (which is sized by the button) */
+}
+
+#view-dropdown-content a {
+    color: var(--text-color);
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+}
+
+#view-dropdown-content a:hover {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+
+/* Category Dropdown */
+#category-dropdown-content {
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.category-filter-label {
+    display: block;
+    padding: 10px 12px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.category-filter-label:hover {
+    background-color: var(--primary-color);
+}
+
+.category-filter-checkbox {
+    width: 1.2em;
+    height: 1.2em;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+/* Custom Date Range */
+.custom-date-range {
+    padding: 1.5rem;
+    display: grid;
+    justify-items: center;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.date-inputs-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    justify-content: center;
+    gap: 1.5rem;
+    width: 100%;
+}
+
+.date-input-group {
+    display: flex;
+    flex-direction: column; /* Stack label above input */
+    align-items: center;    /* Center label with input */
+    gap: 0.5rem;
+}
+
+.date-input-group label {
+    font-weight: 500;
+}
+
+.date-input-group input[type="date"] {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--secondary-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem;
+    color: var(--text-color);
+    font-family: inherit;
+}
+
+.custom-date-range button {
+    margin-top: 1rem; /* Add space above the button */
+}
+
+/* Specific Month Picker */
+.specific-month-picker {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.month-year-inputs {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    width: 100%;
+}
+
+.specific-month-picker .input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.specific-month-picker label {
+    font-weight: 500;
+    text-align: center;
+}
+
+.specific-month-picker select,
+.specific-month-picker input[type="number"] {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--secondary-color);
+    border-radius: var(--border-radius);
+    padding: 0.75rem;
+    color: var(--text-color);
+    font-family: inherit;
+}
+
+.custom-date-range .error-message {
+    text-align: center;
+    width: 100%;
+    margin-top: 0;
+}
+
+/* Category Grouping */
+.category-group {
+    margin-bottom: 1.5rem;
+}
+
+.category-title {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--secondary-color);
+}
+
+.category-expense-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
     html {
