@@ -1610,6 +1610,37 @@ async function main() {
     // For returning users, only show if Gemini key is missing
     if (!getGeminiKey()) showGeminiKeyPopup(false);
   }
+  
+  // Register service worker for PWA functionality
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered successfully:', registration);
+    } catch (error) {
+      console.log('Service Worker registration failed:', error);
+    }
+  }
+  
+  // Handle PWA install prompt
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    // Show install button/notification
+    showInstallPrompt();
+  });
+  
+  // Function to show install prompt
+  function showInstallPrompt() {
+    // Only show if user hasn't dismissed it before
+    if (localStorage.getItem('pwa_install_dismissed') === 'true') return;
+    
+    setTimeout(() => {
+      showNotification('💡 Install this app for a better experience! Look for "Add to Home Screen" in your browser menu.', 'info');
+    }, 5000); // Show after 5 seconds
+  }
 }
 
 main();
