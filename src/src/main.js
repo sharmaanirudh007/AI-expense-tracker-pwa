@@ -690,11 +690,12 @@ function renderAnalyzePage() {
 
 async function renderSummaryPage() {
   document.getElementById('page-content').innerHTML = `
-    <h2>📊 Spending Summary</h2>
+    <h2>Spending Summary</h2>
     <div class="tabs">
-      <button class="tab-btn active" id="tab-daily">📅 Daily</button>
-      <button class="tab-btn" id="tab-monthly">📆 Monthly</button>
-      <button class="tab-btn" id="tab-yearly">📈 Yearly</button>
+      <button class="tab-btn active" id="tab-daily">Daily</button>
+      <button class="tab-btn" id="tab-monthly">This Month</button>
+      <button class="tab-btn" id="tab-month">Month</button>
+      <button class="tab-btn" id="tab-yearly">Yearly</button>
     </div>
     <div id="tab-content" class="tab-content"></div>
   `
@@ -708,6 +709,11 @@ async function renderSummaryPage() {
     e.target.classList.add('active');
     renderSummaryTab('monthly');
   }
+  document.getElementById('tab-month').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('month');
+  }
   document.getElementById('tab-yearly').onclick = (e) => { 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
@@ -720,9 +726,38 @@ async function renderSummaryTab(type) {
   const content = document.getElementById('tab-content');
   content.innerHTML = `
     <div class="sub-tabs">
-        <button class="sub-tab-btn active" data-view="charts">📊 Charts</button>
-        <button class="sub-tab-btn" data-view="details">🔢 Details</button>
+        <button class="sub-tab-btn active" data-view="charts">Charts</button>
+        <button class="sub-tab-btn" data-view="details">Details</button>
     </div>
+
+    ${type === 'month' ? `
+    <div class="month-picker card">
+        <div class="month-year-inputs">
+            <div class="input-group">
+                <label for="summary-month-select">Month</label>
+                <select id="summary-month-select">
+                    <option value="0">January</option>
+                    <option value="1">February</option>
+                    <option value="2">March</option>
+                    <option value="3">April</option>
+                    <option value="4">May</option>
+                    <option value="5">June</option>
+                    <option value="6">July</option>
+                    <option value="7">August</option>
+                    <option value="8">September</option>
+                    <option value="9">October</option>
+                    <option value="10">November</option>
+                    <option value="11">December</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="summary-year-input">Year</label>
+                <input type="number" id="summary-year-input" placeholder="YYYY" />
+            </div>
+        </div>
+        <button id="apply-summary-month">Apply</button>
+    </div>
+    ` : ''}
 
     <div id="charts-view" class="sub-tab-content active">
         <div class="summary-section card">
@@ -761,6 +796,17 @@ async function renderSummaryTab(type) {
           document.getElementById(`${view}-view`).classList.add('active');
       }
   });
+
+  // Add event listener for month picker apply button
+  if (type === 'month') {
+    document.getElementById('apply-summary-month').onclick = () => {
+      const month = document.getElementById('summary-month-select').value;
+      const year = document.getElementById('summary-year-input').value;
+      if (year && month !== null) {
+        renderSummaryTab('month');
+      }
+    };
+  }
 
   const allExpenses = await getAllExpenses();
   if (allExpenses.length === 0) {
@@ -822,6 +868,52 @@ async function renderSummaryTab(type) {
     barChartData = labels.map(label => {
         const monthExpenses = monthlyGroups[label] || [];
         return monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'month') {
+    // Month picker functionality
+    const now = new Date();
+    let selectedMonth = now.getMonth();
+    let selectedYear = now.getFullYear();
+    
+    // Check if month/year inputs exist and have values
+    const monthSelect = document.getElementById('summary-month-select');
+    const yearInput = document.getElementById('summary-year-input');
+    
+    if (monthSelect && yearInput && yearInput.value) {
+      selectedMonth = parseInt(monthSelect.value);
+      selectedYear = parseInt(yearInput.value);
+    } else {
+      // Set default values for new render
+      setTimeout(() => {
+        if (document.getElementById('summary-month-select')) {
+          document.getElementById('summary-month-select').value = selectedMonth;
+        }
+        if (document.getElementById('summary-year-input')) {
+          document.getElementById('summary-year-input').value = selectedYear;
+        }
+      }, 0);
+    }
+    
+    const monthString = String(selectedMonth + 1).padStart(2, '0');
+    const yearMonth = `${selectedYear}-${monthString}`;
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(yearMonth));
+    periodString = `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][selectedMonth]} ${selectedYear}`;
+
+    // Bar chart: show all days of the selected month
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    document.getElementById('bar-chart-title').textContent = `Daily Spending for ${periodString}`;
+
+    const labels = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+        labels.push(`${selectedYear}-${monthString}-${String(i).padStart(2, '0')}`);
+    }
+    barChartLabels = labels.map(d => d.split('-')[2]); // Just show day number
+
+    const dailyGroups = groupBy(periodExpenses, e => e.date);
+    barChartData = labels.map(label => {
+        const dayExpenses = dailyGroups[label] || [];
+        return dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     });
 
   } else if (type === 'yearly') {
@@ -901,10 +993,10 @@ function renderBarChart(canvasId, labels, data, chartLabel) {
     window._charts[canvasId].destroy();
   }
 
-  // Create a gradient for the bars
+  // Create a gradient for the bars using theme colors
   const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
-  gradient.addColorStop(0, 'rgba(138, 43, 226, 0.8)'); // #8A2BE2 (BlueViolet)
-  gradient.addColorStop(1, 'rgba(65, 105, 225, 0.8)'); // #4169E1 (RoyalBlue)
+  gradient.addColorStop(0, 'rgba(46, 125, 50, 0.8)'); // var(--accent-color) with opacity
+  gradient.addColorStop(1, 'rgba(46, 125, 50, 0.4)'); // var(--accent-color) with lower opacity
 
   // The datalabels plugin is now globally registered via the script tag
   window._charts[canvasId] = new Chart(ctx, {
@@ -915,9 +1007,9 @@ function renderBarChart(canvasId, labels, data, chartLabel) {
         label: chartLabel,
         data,
         backgroundColor: gradient,
-        borderColor: 'rgba(100, 100, 200, 1)',
+        borderColor: 'rgba(46, 125, 50, 1)', // var(--accent-color)
         borderWidth: 1,
-        hoverBackgroundColor: 'rgba(138, 43, 226, 1)'
+        hoverBackgroundColor: 'rgba(46, 125, 50, 1)' // var(--accent-color)
       }]
     },
     options: {
@@ -962,17 +1054,17 @@ function renderPieChart(canvasId, labels, data, chartLabel) {
 
   const total = data.reduce((acc, val) => acc + val, 0);
   
-  // A curated color palette that fits the dark theme
+  // A curated color palette that fits the dark theme - updated for better theme alignment
   const themeColors = [
-    '#2E7D32', // Green
-    '#1976D2', // Blue
-    '#D32F2F', // Red
-    '#FBC02D', // Yellow
-    '#8E24AA', // Purple
-    '#00796B', // Teal
-    '#C2185B', // Pink
-    '#F57C00', // Orange
-    '#512DA8'  // Deep Purple
+    '#2E7D32', // Primary accent green
+    '#388E3C', // Lighter green
+    '#43A047', // Even lighter green
+    '#66BB6A', // Light green
+    '#81C784', // Very light green
+    '#1B5E20', // Dark green
+    '#4CAF50', // Material green
+    '#8BC34A', // Light green variant
+    '#689F38'  // Olive green
   ];
 
   const backgroundColors = labels.map((_, i) => themeColors[i % themeColors.length]);
@@ -986,8 +1078,8 @@ function renderPieChart(canvasId, labels, data, chartLabel) {
         label: chartLabel,
         data,
         backgroundColor: backgroundColors,
-        borderColor: 'var(--background-color)',
-        borderWidth: 3,
+        borderColor: '#1E1E1E', // var(--primary-color)
+        borderWidth: 1, // 1 point border as requested
         hoverOffset: 15
       }]
     },
