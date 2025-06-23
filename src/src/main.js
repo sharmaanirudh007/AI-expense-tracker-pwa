@@ -247,6 +247,42 @@ function showDetailedInstructions() {
       </div>
       
       <div class="instruction-section">
+        <h3>📱 Install as Mobile App (PWA)</h3>
+        <p>For the best experience, install this app on your device:</p>
+        <div class="pwa-install-instructions">
+          <div class="pwa-platform">
+            <strong>📱 On Mobile (Android/iOS):</strong>
+            <ol class="instruction-list">
+              <li>Open this app in <strong>Chrome</strong> or <strong>Safari</strong></li>
+              <li>Tap the <strong>menu button</strong> (three dots or share icon)</li>
+              <li>Look for <strong>"Add to Home Screen"</strong> or <strong>"Install App"</strong></li>
+              <li>Tap it and confirm the installation</li>
+              <li>The app will appear on your home screen like a native app!</li>
+            </ol>
+          </div>
+          <div class="pwa-platform">
+            <strong>💻 On Desktop (Chrome/Edge):</strong>
+            <ol class="instruction-list">
+              <li>Look for the <strong>install icon</strong> in the address bar</li>
+              <li>Or go to <strong>menu → "Install AI Expense Tracker"</strong></li>
+              <li>Click install and the app will open in its own window</li>
+              <li>You can also pin it to taskbar/dock for quick access</li>
+            </ol>
+          </div>
+        </div>
+        <div class="pwa-benefits">
+          <p><strong>Benefits of installing:</strong></p>
+          <ul class="tips-list">
+            <li>Works offline after installation</li>
+            <li>Opens faster (no browser overhead)</li>
+            <li>Feels like a native mobile app</li>
+            <li>No browser address bar or tabs</li>
+            <li>Easy access from home screen/desktop</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="instruction-section">
         <h3>🔒 Privacy & Security</h3>
         <p>Your API key and expense data are stored locally in your browser. Nothing is sent to third-party servers except for Google's Gemini AI (for processing) and Google Drive (if you choose to sync).</p>
       </div>

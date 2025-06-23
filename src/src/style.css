@@ -1135,6 +1135,37 @@ h2 {
   line-height: 1.4;
 }
 
+/* PWA Installation Instructions */
+.pwa-install-instructions {
+  margin: 1rem 0;
+}
+
+.pwa-platform {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: rgba(46, 125, 50, 0.1);
+  border-radius: var(--border-radius);
+  border-left: 3px solid var(--accent-color);
+}
+
+.pwa-platform:last-of-type {
+  margin-bottom: 1rem;
+}
+
+.pwa-benefits {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(66, 165, 245, 0.1);
+  border-radius: var(--border-radius);
+  border-left: 3px solid #42A5F5;
+}
+
+.pwa-benefits p {
+  margin-bottom: 0.5rem;
+  color: var(--text-color);
+  font-weight: 500;
+}
+
 /* Responsive adjustments */
 @media (max-width: 600px) {
     .instruction-manual {
