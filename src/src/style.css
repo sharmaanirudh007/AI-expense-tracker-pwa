@@ -63,6 +63,32 @@ body {
   color: var(--text-color);
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.help-btn {
+  background: var(--secondary-color);
+  color: var(--text-color);
+  border: none;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.help-btn:hover {
+  background: var(--accent-color);
+  transform: scale(1.05);
+}
+
 /* Main Content */
 #page-content {
   flex: 1;
@@ -179,6 +205,16 @@ button:active {
   transform: scale(0.98);
 }
 
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+button:disabled:hover {
+  filter: none;
+}
+
 button.btn-secondary {
   background-color: var(--secondary-color);
   color: var(--text-color);
@@ -187,6 +223,24 @@ button.btn-secondary {
 button.btn-danger {
     background-color: var(--danger-color);
     color: white;
+}
+
+/* Loader Animation */
+.loader {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  animation: spin 0.8s ease-in-out infinite;
+  margin-right: 0.5rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Cards */
@@ -326,6 +380,62 @@ button.btn-danger {
 .drive-buttons {
     display: flex;
     gap: 1rem;
+}
+
+.key-input-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.key-input-container input {
+    flex: 1;
+    padding-right: 3rem; /* Make room for the toggle button */
+}
+
+.toggle-visibility-btn {
+    position: absolute;
+    right: 0.75rem;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0.25rem;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    color: var(--text-secondary-color);
+}
+
+.toggle-visibility-btn:hover {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
+}
+
+.eye-icon {
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+}
+
+.gemini-key-buttons {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.help-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.help-buttons button {
+    flex: 1;
+    min-width: 150px;
 }
 
 /* Google Account Status */
@@ -496,11 +606,43 @@ button.btn-danger {
     gap: 1rem;
     border: 1px solid var(--secondary-color);
     box-shadow: 0 8px 24px var(--shadow-dark);
+    position: relative;
+}
+
+.popup-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.popup-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary-color);
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s, color 0.2s;
+    margin: 0;
+    line-height: 1;
+}
+
+.popup-close-btn:hover {
+    background-color: var(--secondary-color);
+    color: var(--text-color);
 }
 
 .popup-content h2 {
-    align-self: center;
-    margin: 0 0 1rem 0;
+    align-self: flex-start;
+    margin: 0;
+    flex: 1;
 }
 
 .popup-content p {
@@ -916,4 +1058,94 @@ h2 {
 .drive-message {
     color: #4285F4;
     margin-top: 1rem;
+}
+
+/* Instruction Manual Styling */
+.instruction-manual {
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.instruction-section {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--secondary-color);
+}
+
+.instruction-section:last-of-type {
+  border-bottom: none;
+}
+
+.instruction-section h3 {
+  color: var(--accent-color);
+  margin-bottom: 0.75rem;
+  font-size: 1.1rem;
+}
+
+.instruction-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  line-height: 1.6;
+}
+
+.instruction-list li {
+  margin-bottom: 0.5rem;
+}
+
+.feature-list, .tips-list {
+  margin: 0;
+  padding-left: 1.5rem;
+  line-height: 1.6;
+}
+
+.feature-list li, .tips-list li {
+  margin-bottom: 0.5rem;
+}
+
+.feature-list li strong {
+  color: var(--accent-color);
+}
+
+.instruction-steps {
+  margin: 1rem 0;
+}
+
+.step {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(224, 224, 224, 0.1);
+  line-height: 1.5;
+}
+
+.step:last-child {
+  border-bottom: none;
+}
+
+.popup-note {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: rgba(46, 125, 50, 0.1);
+  border-radius: var(--border-radius);
+  border-left: 3px solid var(--accent-color);
+}
+
+.popup-note small {
+  color: var(--text-secondary-color);
+  line-height: 1.4;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .instruction-manual {
+        padding: 1rem;
+    }
+
+    .instruction-section h3 {
+        font-size: 1rem;
+    }
+
+    .instruction-list, .feature-list, .tips-list {
+        padding-left: 1rem;
+    }
 }

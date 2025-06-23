@@ -18,7 +18,9 @@ const ICONS = {
   expenses: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>',
   analyze: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
   summary: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>',
-  settings: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>'
+  settings: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
+  eyeOpen: '<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+  eyeClosed: '<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'
 };
 
 const app = document.querySelector('#app')
@@ -121,34 +123,164 @@ function setGeminiKey(key) {
 
 function showGeminiKeyPopup(force = false) {
   if (document.getElementById('gemini-popup')) return
+  
+  const isFirstTime = !localStorage.getItem('gemini_setup_seen');
+  if (isFirstTime && !force) {
+    localStorage.setItem('gemini_setup_seen', 'true');
+  }
+  
   const popup = document.createElement('div')
   popup.id = 'gemini-popup'
   popup.className = 'popup-overlay'
+  
+  const title = isFirstTime && !force ? '🚀 Welcome to AI Expense Tracker!' : '🔑 Gemini API Key Required';
+  const subtitle = isFirstTime && !force 
+    ? 'To get started with AI-powered expense tracking, you\'ll need a free Gemini API key.' 
+    : 'To use AI features, please set up your Gemini API key.';
+  
   popup.innerHTML = `
     <div class="popup-content">
-      <h2>Enter Gemini API Key</h2>
-      <input type="password" id="popup-gemini-key" placeholder="Gemini API Key" />
+      <div class="popup-header">
+        <h2>${title}</h2>
+        ${!force ? '<button id="close-popup-x" class="popup-close-btn">×</button>' : ''}
+      </div>
+      <p>${subtitle}</p>
+      
+      <div class="instruction-steps">
+        <div class="step">
+          <strong>Step 1:</strong> Visit <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--accent-color);">Google AI Studio</a>
+        </div>
+        <div class="step">
+          <strong>Step 2:</strong> Sign in with your Google account
+        </div>
+        <div class="step">
+          <strong>Step 3:</strong> Click "Create API Key" button
+        </div>
+        <div class="step">
+          <strong>Step 4:</strong> Copy the generated API key
+        </div>
+        <div class="step">
+          <strong>Step 5:</strong> Paste it below and click Save
+        </div>
+      </div>
+      
+      <input type="password" id="popup-gemini-key" placeholder="Paste your Gemini API Key here" />
       <div id="popup-error" class="popup-error"></div>
+      
       <div class="popup-buttons">
-        <button id="save-gemini-key">Save</button>
-        <button id="close-gemini-popup" class="btn-secondary">${force ? 'Close (disabled)' : 'Close'}</button>
+        <button id="save-gemini-key">Save & Continue</button>
+        <button id="open-instructions" class="btn-secondary">📖 Detailed Guide</button>
+        ${!force ? '<button id="close-gemini-popup" class="btn-secondary">Skip for Now</button>' : ''}
+      </div>
+      
+      <div class="popup-note">
+        <small>💡 <strong>Note:</strong> Your API key is stored securely in your browser and never shared with anyone.</small>
       </div>
     </div>
   `
   document.body.appendChild(popup)
+  
   document.getElementById('save-gemini-key').onclick = () => {
     const key = document.getElementById('popup-gemini-key').value
     if (!key) {
-      document.getElementById('popup-error').textContent = 'API key required.'
+      document.getElementById('popup-error').textContent = '⚠️ Please enter your API key to continue.'
       return
     }
     setGeminiKey(key)
     document.body.removeChild(popup)
+    showNotification('🎉 API key saved successfully! You can now use AI features.', 'success')
     renderForm()
   }
-  document.getElementById('close-gemini-popup').onclick = () => {
-    if (force) return
-    document.body.removeChild(popup)
+  
+  document.getElementById('open-instructions').onclick = () => {
+    showDetailedInstructions()
+  }
+  
+  if (!force) {
+    document.getElementById('close-gemini-popup').onclick = () => {
+      document.body.removeChild(popup)
+      showNotification('⚠️ AI features will be disabled until you add an API key.', 'info')
+    }
+    
+    // Add event listener for the X button
+    if (document.getElementById('close-popup-x')) {
+      document.getElementById('close-popup-x').onclick = () => {
+        document.body.removeChild(popup)
+        showNotification('⚠️ AI features will be disabled until you add an API key.', 'info')
+      }
+    }
+  }
+}
+
+function showDetailedInstructions() {
+  const instructionsPopup = document.createElement('div')
+  instructionsPopup.className = 'popup-overlay'
+  instructionsPopup.innerHTML = `
+    <div class="popup-content instruction-manual">
+      <div class="popup-header">
+        <h2>📚 Complete Setup Guide</h2>
+        <button id="close-instructions-x" class="popup-close-btn">×</button>
+      </div>
+      
+      <div class="instruction-section">
+        <h3>🔑 Getting Your Gemini API Key</h3>
+        <ol class="instruction-list">
+          <li>Open <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color: var(--accent-color);">Google AI Studio</a> in a new tab</li>
+          <li>Sign in with your Google account (if not already signed in)</li>
+          <li>You'll see the API Keys page</li>
+          <li>Click the <strong>"Create API Key"</strong> button</li>
+          <li>Choose <strong>"Create API key in new project"</strong> (recommended for beginners)</li>
+          <li>Wait a moment for the key to be generated</li>
+          <li>Click the <strong>copy icon</strong> next to your new API key</li>
+          <li>Come back to this app and paste it in the API key field</li>
+        </ol>
+      </div>
+      
+      <div class="instruction-section">
+        <h3>🚀 What You Can Do</h3>
+        <ul class="feature-list">
+          <li><strong>Smart Expense Entry:</strong> Just type naturally like "I spent 50 on groceries yesterday"</li>
+          <li><strong>AI Analysis:</strong> Ask questions like "How much did I spend on food this month?"</li>
+          <li><strong>Expense Insights:</strong> Get personalized insights about your spending patterns</li>
+          <li><strong>Google Drive Sync:</strong> Backup and sync your data across devices</li>
+        </ul>
+      </div>
+      
+      <div class="instruction-section">
+        <h3>🔒 Privacy & Security</h3>
+        <p>Your API key and expense data are stored locally in your browser. Nothing is sent to third-party servers except for Google's Gemini AI (for processing) and Google Drive (if you choose to sync).</p>
+      </div>
+      
+      <div class="instruction-section">
+        <h3>💡 Tips for Beginners</h3>
+        <ul class="tips-list">
+          <li>The Gemini API is free with generous limits for personal use</li>
+          <li>You can skip the API key setup and add expenses manually if preferred</li>
+          <li>Try asking the AI questions in natural language for best results</li>
+          <li>Use Google Drive sync to backup your data safely</li>
+        </ul>
+      </div>
+      
+      <div class="popup-buttons">
+        <button id="close-instructions" class="btn-secondary">Got it! Close Guide</button>
+        <button id="back-to-setup">🔙 Back to Setup</button>
+      </div>
+    </div>
+  `
+  
+  document.body.appendChild(instructionsPopup)
+  
+  document.getElementById('close-instructions').onclick = () => {
+    document.body.removeChild(instructionsPopup)
+  }
+  
+  document.getElementById('close-instructions-x').onclick = () => {
+    document.body.removeChild(instructionsPopup)
+  }
+  
+  document.getElementById('back-to-setup').onclick = () => {
+    document.body.removeChild(instructionsPopup)
+    // The original popup should still be there
   }
 }
 
@@ -196,7 +328,9 @@ function renderNav() {
   app.innerHTML = `
     <header class="app-header">
       <h1>AI Expense Tracker</h1>
-      <div id="google-account-status"></div>
+      <div class="header-actions">
+        <div id="google-account-status"></div>
+      </div>
     </header>
     <main id="page-content"></main>
     <nav class="main-nav">
@@ -236,12 +370,21 @@ function renderForm() {
   document.getElementById('expense-form').onsubmit = async (e) => {
     e.preventDefault()
     const text = document.getElementById('description').value
+    const submitBtn = e.target.querySelector('button[type="submit"]')
+    const originalText = submitBtn.innerHTML
+    
     const apiKey = getGeminiKey()
     if (!apiKey) {
       document.getElementById('error-msg').textContent = 'Gemini API key is required.'
       showGeminiKeyPopup(true)
       return
     }
+    
+    // Show loading state
+    submitBtn.disabled = true
+    submitBtn.innerHTML = '<span class="loader"></span> Processing...'
+    document.getElementById('error-msg').textContent = ''
+    
     try {
       const aiExpense = await parseExpenseWithGemini(text, apiKey)
       const expense = {
@@ -251,6 +394,11 @@ function renderForm() {
         date: aiExpense.date || getLocalDateString(),
         created_at: new Date().toISOString()
       }
+      
+      // Reset button state before showing confirmation
+      submitBtn.disabled = false
+      submitBtn.innerHTML = originalText
+      
       showExpenseConfirmationPopup(expense, async () => {
         await addExpense(expense)
         e.target.reset()
@@ -269,6 +417,9 @@ function renderForm() {
         renderSmartInsight();
       });
     } catch (err) {
+      // Reset button state on error
+      submitBtn.disabled = false
+      submitBtn.innerHTML = originalText
       document.getElementById('error-msg').textContent = err.message
     }
   }
@@ -1303,8 +1454,14 @@ function renderSettingsPage() {
             <div class="setting-item card">
                 <h3>Gemini API Key</h3>
                 <p>Your API key is stored securely in your browser's local storage.</p>
-                <input type="password" id="gemini-key-input" value="${getGeminiKey()}">
-                <button id="save-gemini-key">Save Key</button>
+                <div class="key-input-container">
+                    <input type="password" id="gemini-key-input" value="${getGeminiKey()}">
+                    <button id="toggle-key-visibility" class="toggle-visibility-btn" title="Show API Key">${ICONS.eyeOpen}</button>
+                </div>
+                <div class="gemini-key-buttons">
+                    <button id="save-gemini-key">Save Key</button>
+                    <button id="clear-gemini-key" class="btn-secondary">Clear Key</button>
+                </div>
             </div>
             <div class="setting-item card">
                 <h3>Google Drive Sync</h3>
@@ -1314,6 +1471,14 @@ function renderSettingsPage() {
                     <button id="load-drive">Load from Drive</button>
                 </div>
                 <div id="drive-msg" class="drive-message"></div>
+            </div>
+            <div class="setting-item card">
+                <h3>📚 Help & Setup Guide</h3>
+                <p>Get help with setup, learn about features, and view detailed instructions.</p>
+                <div class="help-buttons">
+                    <button id="setup-gemini-help">🔑 Gemini API Setup</button>
+                    <button id="detailed-help">📖 Full Guide & Tips</button>
+                </div>
             </div>
              <div class="setting-item card">
                 <h3>Danger Zone</h3>
@@ -1327,6 +1492,37 @@ function renderSettingsPage() {
         const key = document.getElementById('gemini-key-input').value;
         setGeminiKey(key);
         showNotification('Gemini API Key saved!', 'success');
+    };
+
+    document.getElementById('clear-gemini-key').onclick = () => {
+        if (confirm('Are you sure you want to clear your Gemini API key? You will lose access to AI features until you add it again.')) {
+            setGeminiKey('');
+            document.getElementById('gemini-key-input').value = '';
+            showNotification('Gemini API Key cleared!', 'info');
+        }
+    };
+
+    document.getElementById('toggle-key-visibility').onclick = () => {
+        const keyInput = document.getElementById('gemini-key-input');
+        const toggleBtn = document.getElementById('toggle-key-visibility');
+        
+        if (keyInput.type === 'password') {
+            keyInput.type = 'text';
+            toggleBtn.innerHTML = ICONS.eyeClosed;
+            toggleBtn.title = 'Hide API Key';
+        } else {
+            keyInput.type = 'password';
+            toggleBtn.innerHTML = ICONS.eyeOpen;
+            toggleBtn.title = 'Show API Key';
+        }
+    };
+
+    document.getElementById('setup-gemini-help').onclick = () => {
+        showGeminiKeyPopup(false);
+    };
+
+    document.getElementById('detailed-help').onclick = () => {
+        showDetailedInstructions();
     };
 
     document.getElementById('sync-drive').onclick = () => triggerSync(true);
@@ -1401,8 +1597,19 @@ async function main() {
     console.error("Error during silent sign-in:", error);
     // The UI will show the default "Sign In" button, which is the correct fallback.
   }
+  
+  // Check if this is the user's first time using the app
+  const isFirstTime = !localStorage.getItem('app_visited');
+  if (isFirstTime) {
+    localStorage.setItem('app_visited', 'true');
+    // For first time users, show the setup popup even if they might have skipped it
+    if (!getGeminiKey()) {
+      setTimeout(() => showGeminiKeyPopup(false), 1000); // Small delay for better UX
+    }
+  } else {
+    // For returning users, only show if Gemini key is missing
+    if (!getGeminiKey()) showGeminiKeyPopup(false);
+  }
 }
 
 main();
-
-if (!getGeminiKey()) showGeminiKeyPopup(false)
