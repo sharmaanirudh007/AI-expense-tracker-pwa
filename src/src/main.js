@@ -692,42 +692,191 @@ async function renderSummaryPage() {
   document.getElementById('page-content').innerHTML = `
     <h2>📊 Spending Summary</h2>
     <div class="tabs">
-      <button class="tab-btn" id="tab-daily">📅 Daily</button>
+      <button class="tab-btn active" id="tab-daily">📅 Daily</button>
       <button class="tab-btn" id="tab-monthly">📆 Monthly</button>
       <button class="tab-btn" id="tab-yearly">📈 Yearly</button>
     </div>
     <div id="tab-content" class="tab-content"></div>
   `
-  document.getElementById('tab-daily').onclick = () => renderSummaryTab('daily')
-  document.getElementById('tab-monthly').onclick = () => renderSummaryTab('monthly')
-  document.getElementById('tab-yearly').onclick = () => renderSummaryTab('yearly')
-  renderSummaryTab('daily')
+  document.getElementById('tab-daily').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('daily');
+  }
+  document.getElementById('tab-monthly').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('monthly');
+  }
+  document.getElementById('tab-yearly').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('yearly');
+  }
+  renderSummaryTab('daily');
 }
 
 async function renderSummaryTab(type) {
-  const content = document.getElementById('tab-content')
-  content.innerHTML = `<div id="summary-chart" class="summary-chart"></div><div id="summary-table"></div>`
-  const expenses = await getAllExpenses()
-  let groups = {}
-  if (type === 'daily') {
-    groups = groupBy(expenses, e => e.date)
-  } else if (type === 'monthly') {
-    groups = groupBy(expenses, e => e.date.slice(0,7))
-  } else if (type === 'yearly') {
-    groups = groupBy(expenses, e => e.date.slice(0,4))
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <div class="sub-tabs">
+        <button class="sub-tab-btn active" data-view="charts">📊 Charts</button>
+        <button class="sub-tab-btn" data-view="details">🔢 Details</button>
+    </div>
+
+    <div id="charts-view" class="sub-tab-content active">
+        <div class="summary-section card">
+            <h3 id="bar-chart-title"></h3>
+            <div class="summary-chart-container">
+                <canvas id="summary-bar-chart"></canvas>
+            </div>
+        </div>
+        <div class="summary-section card">
+            <h3 id="pie-chart-title"></h3>
+            <div class="summary-chart-container">
+                <canvas id="summary-pie-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="details-view" class="sub-tab-content">
+        <div class="summary-section card">
+            <h3 id="total-spending-title"></h3>
+            <p id="total-spending-amount" class="summary-total">₹0.00</p>
+        </div>
+        <div class="summary-section card">
+            <h3 id="category-table-title"></h3>
+            <div id="category-summary-table"></div>
+        </div>
+    </div>
+  `;
+
+  // Add event listeners for sub-tabs
+  document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+      btn.onclick = (e) => {
+          document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          const view = e.target.dataset.view;
+          document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+          document.getElementById(`${view}-view`).classList.add('active');
+      }
+  });
+
+  const allExpenses = await getAllExpenses();
+  if (allExpenses.length === 0) {
+      content.innerHTML = '<div class="card"><p>No summary to display. Add some expenses first!</p></div>';
+      return;
   }
-  // Prepare data for chart and table
-  const labels = Object.keys(groups)
-  const data = labels.map(label => groups[label].reduce((sum, e) => sum + (e.amount || 0), 0))
-  // Render chart
-  renderChart(labels, data, type)
-  // Render table by category
-  let table = `<table class="analyze-table"><thead><tr><th>${type.charAt(0).toUpperCase()+type.slice(1)}</th><th>Total</th></tr></thead><tbody>`
-  labels.forEach((label, i) => {
-    table += `<tr><td>${label}</td><td>₹${data[i].toFixed(2)}</td></tr>`
-  })
-  table += '</tbody></table>'
-  document.getElementById('summary-table').innerHTML = table
+
+  let barChartLabels = [];
+  let barChartData = [];
+  let periodExpenses = []; // Expenses for the pie chart, total, and table
+  const today = new Date();
+  let periodString = '';
+  const currentYear = today.getFullYear();
+
+  if (type === 'daily') {
+    periodString = `Today`;
+    const todayString = getLocalDateString(today);
+    periodExpenses = allExpenses.filter(e => e.date === todayString);
+
+    // Bar chart: show all days of the current month
+    const currentMonth = today.getMonth(); // 0-indexed
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    document.getElementById('bar-chart-title').textContent = `Daily Spending for ${monthShortNames[currentMonth]} ${currentYear}`;
+
+    const labels = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+        labels.push(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`);
+    }
+    barChartLabels = labels.map(d => d.split('-')[2]); // Just show day number
+
+    const expensesThisMonth = allExpenses.filter(e => e.date.startsWith(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`));
+    const dailyGroups = groupBy(expensesThisMonth, e => e.date);
+
+    barChartData = labels.map(label => {
+        const dayExpenses = dailyGroups[label] || [];
+        return dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'monthly') {
+    periodString = `This Month`;
+    const thisMonthString = today.toISOString().slice(0, 7);
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(thisMonthString));
+
+    // Bar chart: show all months of the current year
+    document.getElementById('bar-chart-title').textContent = `Monthly Spending for ${currentYear}`;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    barChartLabels = monthNames;
+
+    const labels = [];
+    for (let i = 1; i <= 12; i++) {
+        labels.push(`${currentYear}-${String(i).padStart(2, '0')}`);
+    }
+
+    const expensesThisYear = allExpenses.filter(e => e.date.startsWith(currentYear.toString()));
+    const monthlyGroups = groupBy(expensesThisYear, e => e.date.slice(0, 7));
+
+    barChartData = labels.map(label => {
+        const monthExpenses = monthlyGroups[label] || [];
+        return monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'yearly') {
+    periodString = `This Year`;
+    const thisYearString = today.getFullYear().toString();
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(thisYearString));
+    
+    // Hide bar chart for yearly view
+    const barChartSection = document.getElementById('summary-bar-chart')?.parentElement.parentElement;
+    if (barChartSection) {
+        barChartSection.style.display = 'none';
+    }
+  }
+
+  // --- Populate Details View ---
+  document.getElementById('total-spending-title').textContent = `Total Spending ${periodString}`;
+  document.getElementById('category-table-title').textContent = `Category Breakdown for ${periodString}`;
+  const totalSpending = periodExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  document.getElementById('total-spending-amount').textContent = `₹${totalSpending.toFixed(2)}`;
+
+  if (periodExpenses.length > 0) {
+    const categoryGroups = groupBy(periodExpenses, e => e.category);
+    const categoryLabels = Object.keys(categoryGroups).sort();
+    const categoryData = categoryLabels.map(label =>
+      categoryGroups[label].reduce((sum, e) => sum + (e.amount || 0), 0)
+    );
+
+    const tableContainer = document.getElementById('category-summary-table');
+    let tableHTML = '<table class="analyze-table"><thead><tr><th>Category</th><th>Total</th></tr></thead><tbody>';
+    categoryLabels.forEach((label, i) => {
+        tableHTML += `<tr><td>${capitalizeWords(label)}</td><td>₹${categoryData[i].toFixed(2)}</td></tr>`;
+    });
+    tableHTML += '</tbody></table>';
+    tableContainer.innerHTML = tableHTML;
+  } else {
+      document.getElementById('category-summary-table').innerHTML = `<p>No expenses recorded for this period.</p>`;
+  }
+
+  // --- Populate Charts View ---
+  if (type !== 'yearly') {
+    await renderBarChart('summary-bar-chart', barChartLabels, barChartData, `Total Spending`);
+  }
+  
+  document.getElementById('pie-chart-title').textContent = `Category Breakdown for ${periodString}`;
+
+  if (periodExpenses.length > 0) {
+    const categoryGroups = groupBy(periodExpenses, e => e.category);
+    const pieChartLabels = Object.keys(categoryGroups).sort();
+    const pieChartData = pieChartLabels.map(label =>
+      categoryGroups[label].reduce((sum, e) => sum + (e.amount || 0), 0)
+    );
+    await renderPieChart('summary-pie-chart', pieChartLabels, pieChartData, 'Spending by Category');
+  } else {
+      document.getElementById('summary-pie-chart').parentElement.innerHTML = `<p>No expenses recorded for this period.</p>`;
+  }
 }
 
 function groupBy(arr, fn) {
@@ -739,38 +888,153 @@ function groupBy(arr, fn) {
   }, {})
 }
 
-function renderChart(labels, data, type) {
-  // Use Chart.js from CDN if not already loaded
-  if (!window.Chart) {
-    const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/chart.js'
-    script.onload = () => renderChart(labels, data, type)
-    document.body.appendChild(script)
-    return
+// Keep track of chart instances
+if (!window._charts) {
+    window._charts = {};
+}
+
+function renderBarChart(canvasId, labels, data, chartLabel) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+
+  if (window._charts[canvasId]) {
+    window._charts[canvasId].destroy();
   }
-  const ctxId = 'chart-canvas'
-  let canvas = document.getElementById(ctxId)
-  if (!canvas) {
-    canvas = document.createElement('canvas')
-    canvas.id = ctxId
-    document.getElementById('summary-chart').appendChild(canvas)
-  }
-  if (window._chart) window._chart.destroy()
-  window._chart = new Chart(canvas, {
+
+  // Create a gradient for the bars
+  const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+  gradient.addColorStop(0, 'rgba(138, 43, 226, 0.8)'); // #8A2BE2 (BlueViolet)
+  gradient.addColorStop(1, 'rgba(65, 105, 225, 0.8)'); // #4169E1 (RoyalBlue)
+
+  // The datalabels plugin is now globally registered via the script tag
+  window._charts[canvasId] = new Chart(ctx, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: `Spending (${type})`,
+        label: chartLabel,
         data,
-        backgroundColor: '#4caf50',
+        backgroundColor: gradient,
+        borderColor: 'rgba(100, 100, 200, 1)',
+        borderWidth: 1,
+        hoverBackgroundColor: 'rgba(138, 43, 226, 1)'
       }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } }
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+            display: false // Explicitly disable for this chart
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(224, 224, 224, 0.1)' // --text-color with alpha
+          },
+          ticks: {
+            color: '#a0a0a0' // --text-secondary-color
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#a0a0a0' // --text-secondary-color
+          }
+        }
+      }
     }
-  })
+  });
+}
+
+function renderPieChart(canvasId, labels, data, chartLabel) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+
+  if (window._charts[canvasId]) {
+    window._charts[canvasId].destroy();
+  }
+
+  const total = data.reduce((acc, val) => acc + val, 0);
+  
+  // A curated color palette that fits the dark theme
+  const themeColors = [
+    '#2E7D32', // Green
+    '#1976D2', // Blue
+    '#D32F2F', // Red
+    '#FBC02D', // Yellow
+    '#8E24AA', // Purple
+    '#00796B', // Teal
+    '#C2185B', // Pink
+    '#F57C00', // Orange
+    '#512DA8'  // Deep Purple
+  ];
+
+  const backgroundColors = labels.map((_, i) => themeColors[i % themeColors.length]);
+
+  // The datalabels plugin is now globally registered via the script tag
+  window._charts[canvasId] = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels,
+      datasets: [{
+        label: chartLabel,
+        data,
+        backgroundColor: backgroundColors,
+        borderColor: 'var(--background-color)',
+        borderWidth: 3,
+        hoverOffset: 15
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: 30 // Add padding to make space for labels
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        datalabels: {
+          formatter: (value, ctx) => {
+            if (total === 0) return '0%';
+            const percentage = ((value / total) * 100).toFixed(0) + '%';
+            return percentage;
+          },
+          color: '#fff',
+          font: {
+            family: 'Lexend, sans-serif',
+            size: 14,
+            weight: 'bold'
+          },
+          anchor: 'end',
+          align: 'start',
+          offset: 15,
+          clamp: true,
+          // Connector lines
+          connector: {
+            display: true,
+            color: '#fff',
+            width: 2,
+            length: 10,
+            type: 'line'
+          },
+          // Label background
+          backgroundColor: (ctx) => ctx.dataset.backgroundColor[ctx.dataIndex],
+          borderColor: '#fff',
+          borderWidth: 2,
+          borderRadius: 8, // Edgy curves
+          padding: 6
+        }
+      }
+    }
+  });
 }
 
 function getCategoryIcon(category) {
