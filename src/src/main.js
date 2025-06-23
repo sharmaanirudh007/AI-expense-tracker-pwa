@@ -4,6 +4,7 @@ import { parseExpenseWithGemini, getAIInsight } from './gemini.js'
 import { analyzeExpensesWithGemini, runSQLOnExpenses } from './analyze.js'
 import alasql from 'alasql'
 import { signInGoogle, isSignedIn, uploadToDrive, pickAndDownloadFromDrive, trySilentSignIn } from './googleDrive.js'
+import { checkVersion } from './version.js'
 
 // Helper to get YYYY-MM-DD from a Date object, respecting local timezone
 function getLocalDateString(date = new Date()) {
@@ -1647,14 +1648,48 @@ async function main() {
     if (!getGeminiKey()) showGeminiKeyPopup(false);
   }
   
-  // Register service worker for PWA functionality
+  // Check version and handle updates
+  const versionInfo = checkVersion();
+  if (versionInfo.isNewVersion) {
+    console.log('App has been updated to version:', versionInfo.currentVersion);
+  }
+  
+  // Enhanced service worker registration with update detection
   if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
       console.log('Service Worker registered successfully:', registration);
+      
+      // Check for updates every 30 seconds when app is active
+      setInterval(() => {
+        registration.update();
+      }, 30000);
+      
+      // Listen for new service worker installing
+      registration.addEventListener('updatefound', () => {
+        newWorker = registration.installing;
+        console.log('New service worker found!');
+        
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              // New update available
+              showUpdateAvailableNotification();
+            }
+          }
+        });
+      });
+      
     } catch (error) {
       console.log('Service Worker registration failed:', error);
     }
+    
+    // Listen for controlled page reloads
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
   }
   
   // Handle PWA install prompt
@@ -1676,6 +1711,64 @@ async function main() {
     setTimeout(() => {
       showNotification('💡 Install this app for a better experience! Look for "Add to Home Screen" in your browser menu.', 'info');
     }, 5000); // Show after 5 seconds
+  }
+  
+  // Check for updates when app becomes visible (user returns to app)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(registration => {
+        if (registration) {
+          registration.update();
+        }
+      });
+    }
+  });
+}
+
+// PWA Update Management
+let newWorker;
+let refreshing = false;
+
+// Function to show update notification
+function showUpdateAvailableNotification() {
+  if (document.getElementById('update-modal')) return; // Prevent duplicate modals
+  
+  const updateModal = document.createElement('div');
+  updateModal.id = 'update-modal';
+  updateModal.className = 'update-modal';
+  updateModal.innerHTML = `
+    <div class="update-content">
+      <div class="update-header">
+        <h3>🚀 Update Available</h3>
+      </div>
+      <div class="update-body">
+        <p>A new version of AI Expense Tracker is available with improvements and bug fixes.</p>
+        <div class="update-actions">
+          <button id="apply-update-btn" class="btn-primary">Update Now</button>
+          <button id="dismiss-update-btn" class="btn-secondary">Later</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(updateModal);
+  
+  document.getElementById('apply-update-btn').onclick = applyUpdate;
+  document.getElementById('dismiss-update-btn').onclick = dismissUpdate;
+}
+
+// Function to apply update
+function applyUpdate() {
+  if (newWorker) {
+    newWorker.postMessage({ type: 'SKIP_WAITING' });
+  }
+  dismissUpdate();
+}
+
+// Function to dismiss update notification
+function dismissUpdate() {
+  const updateModal = document.getElementById('update-modal');
+  if (updateModal) {
+    updateModal.remove();
   }
 }
 
