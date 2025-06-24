@@ -1461,15 +1461,21 @@ async function renderGoogleAccountStatus() {
     if (signedIn) {
       const { getGoogleUserProfile, signOutGoogle } = await import('./googleDrive.js')
       const profile = await getGoogleUserProfile()
+      const profileImageHtml = profile.imageUrl 
+        ? `<img src="${profile.imageUrl}" alt="Profile" onerror="this.style.display='none'">`
+        : `<div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--secondary-color); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--background-color);">${(profile.name || 'U').charAt(0).toUpperCase()}</div>`;
+      
       statusDiv.innerHTML = `
         <div class="profile-info">
-            <img src="${profile.imageUrl}" alt="Profile">
+            ${profileImageHtml}
         </div>
         <button id="google-signout-btn" class="btn-secondary">Sign out</button>
       `
       document.getElementById('google-signout-btn').onclick = async () => {
-        await signOutGoogle()
-        renderGoogleAccountStatus(); // Re-render to show signed-out state
+        const signedOut = await signOutGoogle()
+        if (signedOut) {
+          renderGoogleAccountStatus(); // Re-render to show signed-out state
+        }
       }
     } else {
       statusDiv.innerHTML = '<button id="google-signin-btn">Sign in with Google</button>'

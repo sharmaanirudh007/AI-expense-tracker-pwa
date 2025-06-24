@@ -14,6 +14,49 @@ let accessToken = null;
 let gapiReady = false;
 let gisReady = false;
 
+// Token storage keys
+const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'google_access_token',
+  TOKEN_EXPIRY: 'google_token_expiry',
+  USER_HAS_SIGNED_IN: 'user_has_signed_in_google'
+};
+
+// Utility functions for token management
+function saveTokenToStorage(token, expiresIn = 3600) {
+  const expiryTime = Date.now() + (expiresIn * 1000);
+  localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+  localStorage.setItem(STORAGE_KEYS.TOKEN_EXPIRY, expiryTime.toString());
+  localStorage.setItem(STORAGE_KEYS.USER_HAS_SIGNED_IN, 'true');
+}
+
+function getTokenFromStorage() {
+  const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+  const expiry = localStorage.getItem(STORAGE_KEYS.TOKEN_EXPIRY);
+  
+  if (!token || !expiry) return null;
+  
+  if (Date.now() > parseInt(expiry)) {
+    // Token expired, clear storage
+    clearTokenFromStorage();
+    return null;
+  }
+  
+  return token;
+}
+
+function clearTokenFromStorage() {
+  localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+  localStorage.removeItem(STORAGE_KEYS.TOKEN_EXPIRY);
+}
+
+function hasUserPreviouslySignedIn() {
+  return localStorage.getItem(STORAGE_KEYS.USER_HAS_SIGNED_IN) === 'true';
+}
+
+function clearUserSignInHistory() {
+  localStorage.removeItem(STORAGE_KEYS.USER_HAS_SIGNED_IN);
+}
+
 // Promise that resolves when both GAPI and GIS are loaded and ready.
 const readyPromise = new Promise((resolve, reject) => {
   // Load GAPI script for Drive API and Picker
@@ -52,6 +95,16 @@ const readyPromise = new Promise((resolve, reject) => {
  */
 export async function signInGoogle() {
   await readyPromise;
+  
+  // First check if we have a valid stored token
+  const storedToken = getTokenFromStorage();
+  if (storedToken) {
+    accessToken = storedToken;
+    gapi.client.setToken({ access_token: accessToken });
+    console.log('Using valid stored access token.');
+    return Promise.resolve();
+  }
+  
   return new Promise((resolve, reject) => {
     const callback = (resp) => {
         if (resp.error) {
@@ -60,7 +113,12 @@ export async function signInGoogle() {
         }
         accessToken = resp.access_token;
         gapi.client.setToken({ access_token: accessToken });
-        console.log('Sign-in successful, access token obtained.');
+        
+        // Save token to storage
+        const expiresIn = resp.expires_in || 3600; // Default to 1 hour if not provided
+        saveTokenToStorage(accessToken, expiresIn);
+        
+        console.log('Sign-in successful, access token obtained and stored.');
         resolve();
     };
 
@@ -69,30 +127,65 @@ export async function signInGoogle() {
     }
 
     // This will prompt the user to select an account and grant access only when necessary.
-    // The UX flow (redirect/popup) is handled by the Google library.
     tokenClient.callback = callback;
-    tokenClient.requestAccessToken(); // No prompt, so Google decides the best UX
+    tokenClient.requestAccessToken();
   });
 }
 
 /**
- *  Signs the user out.
+ *  Signs the user out with confirmation.
  */
 export async function signOutGoogle() {
   await readyPromise;
-  if (accessToken) {
-    google.accounts.oauth2.revoke(accessToken, () => {
-      accessToken = null;
-      gapi.client.setToken(null);
-    });
+  
+  // Show confirmation dialog
+  const confirmed = window.confirm('Are you sure you want to sign out of Google Drive? This will remove access to cloud sync features.');
+  if (!confirmed) {
+    return Promise.resolve(false); // User cancelled
   }
+  
+  return new Promise((resolve) => {
+    if (accessToken) {
+      google.accounts.oauth2.revoke(accessToken, () => {
+        accessToken = null;
+        gapi.client.setToken(null);
+        clearTokenFromStorage();
+        clearUserSignInHistory();
+        console.log('Successfully signed out of Google Drive.');
+        resolve(true);
+      });
+    } else {
+      // Even if no current token, clear storage
+      clearTokenFromStorage();
+      clearUserSignInHistory();
+      console.log('Signed out (no active token found).');
+      resolve(true);
+    }
+  });
 }
 
 /**
- *  Attempts to sign in silently on page load.
+ *  Attempts to sign in silently on page load - only if user has previously signed in.
  */
 export async function trySilentSignIn() {
   await readyPromise;
+  
+  // Only attempt silent sign-in if user has previously signed in
+  if (!hasUserPreviouslySignedIn()) {
+    console.log('User has never signed in, skipping silent sign-in attempt.');
+    return Promise.resolve(null);
+  }
+  
+  // Check if we have a valid stored token first
+  const storedToken = getTokenFromStorage();
+  if (storedToken) {
+    accessToken = storedToken;
+    gapi.client.setToken({ access_token: accessToken });
+    console.log('Using valid stored access token for silent sign-in.');
+    return Promise.resolve(accessToken);
+  }
+  
+  // If no valid stored token, attempt silent sign-in
   return new Promise((resolve) => {
     if (!tokenClient) {
         console.log('Token client not initialized');
@@ -102,12 +195,17 @@ export async function trySilentSignIn() {
       if (resp.error) {
         // This is expected if user is not signed in or hasn't consented.
         // Don't reject, just resolve with null.
-        console.log('Silent sign-in failed or user not signed in yet.');
+        console.log('Silent sign-in failed or user session expired.');
         resolve(null);
         return;
       }
       accessToken = resp.access_token;
       gapi.client.setToken({ access_token: accessToken });
+      
+      // Save the new token to storage
+      const expiresIn = resp.expires_in || 3600;
+      saveTokenToStorage(accessToken, expiresIn);
+      
       console.log('Silent sign-in successful.');
       resolve(accessToken);
     };
@@ -118,11 +216,26 @@ export async function trySilentSignIn() {
 }
 
 /**
- *  Checks if the user is currently signed in.
+ *  Checks if the user is currently signed in (checks both in-memory and stored tokens).
  */
 export async function isSignedIn() {
   await readyPromise;
-  return accessToken !== null;
+  
+  // First check if we have an in-memory token
+  if (accessToken !== null) {
+    return true;
+  }
+  
+  // If no in-memory token, check for a valid stored token
+  const storedToken = getTokenFromStorage();
+  if (storedToken) {
+    // Set the token if we found a valid one in storage
+    accessToken = storedToken;
+    gapi.client.setToken({ access_token: accessToken });
+    return true;
+  }
+  
+  return false;
 }
 
 /**

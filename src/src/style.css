@@ -455,6 +455,12 @@ button.btn-danger {
     width: 36px;
     height: 36px;
     border-radius: 50%;
+    background-color: var(--secondary-color);
+    object-fit: cover;
+}
+
+.profile-info img:error {
+    display: none;
 }
 
 .profile-info span {
