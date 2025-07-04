@@ -17,7 +17,7 @@ function getLocalDateString(date = new Date()) {
 const ICONS = {
   home: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>',
   expenses: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>',
-  analyze: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>',
+  analyze: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>',
   summary: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>',
   settings: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
   eyeOpen: '<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
@@ -592,6 +592,7 @@ async function renderExpensesPage() {
     <div class="expenses-controls">
         <div class="filter-controls">
             <button class="btn-filter active" data-filter="today">Today</button>
+            <button class="btn-filter" data-filter="this-week">This Week</button>
             <button class="btn-filter" data-filter="this-month">This Month</button>
             <button class="btn-filter" data-filter="specific-month">Month</button>
             <button class="btn-filter" data-filter="custom">Custom</button>
@@ -1048,11 +1049,95 @@ function renderAnalyzePage() {
   }
 }
 
+// Store selected month and year for summary
+let selectedSummaryMonth = new Date().getMonth();
+let selectedSummaryYear = new Date().getFullYear();
+
+function showMonthYearSelectionPopup() {
+  if (document.getElementById('month-year-popup')) return;
+  
+  const popup = document.createElement('div');
+  popup.id = 'month-year-popup';
+  popup.className = 'popup-overlay';
+  
+  popup.innerHTML = `
+    <div class="popup-content">
+      <div class="popup-header">
+        <h2>Select Month and Year</h2>
+        <button id="close-month-year-popup" class="popup-close-btn">×</button>
+      </div>
+      <div class="popup-body">
+        <div class="month-year-selection">
+          <div class="form-group">
+            <label for="popup-month-select">Month</label>
+            <select id="popup-month-select">
+              <option value="0">January</option>
+              <option value="1">February</option>
+              <option value="2">March</option>
+              <option value="3">April</option>
+              <option value="4">May</option>
+              <option value="5">June</option>
+              <option value="6">July</option>
+              <option value="7">August</option>
+              <option value="8">September</option>
+              <option value="9">October</option>
+              <option value="10">November</option>
+              <option value="11">December</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="popup-year-input">Year</label>
+            <input type="number" id="popup-year-input" placeholder="Year" min="2020" max="2030" value="${selectedSummaryYear}">
+          </div>
+        </div>
+      </div>
+      <div class="popup-buttons">
+        <button id="cancel-month-year" class="btn-secondary">Cancel</button>
+        <button id="apply-month-year" class="btn-primary">Apply</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(popup);
+  
+  // Set current selected values
+  document.getElementById('popup-month-select').value = selectedSummaryMonth;
+  document.getElementById('popup-year-input').value = selectedSummaryYear;
+  
+  // Event listeners
+  document.getElementById('close-month-year-popup').onclick = () => {
+    document.body.removeChild(popup);
+  };
+  
+  document.getElementById('cancel-month-year').onclick = () => {
+    document.body.removeChild(popup);
+  };
+  
+  document.getElementById('apply-month-year').onclick = () => {
+    const month = parseInt(document.getElementById('popup-month-select').value);
+    const year = parseInt(document.getElementById('popup-year-input').value);
+    
+    if (year && !isNaN(year) && year >= 2020 && year <= 2030) {
+      selectedSummaryMonth = month;
+      selectedSummaryYear = year;
+      document.body.removeChild(popup);
+      
+      // Update the active tab and render the summary
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('tab-month').classList.add('active');
+      renderSummaryTab('month');
+    } else {
+      showNotification('Please enter a valid year between 2020 and 2030', 'error');
+    }
+  };
+}
+
 async function renderSummaryPage() {
   document.getElementById('page-content').innerHTML = `
     <h2>Spending Summary</h2>
     <div class="tabs">
       <button class="tab-btn active" id="tab-daily">Daily</button>
+      <button class="tab-btn" id="tab-weekly">This Week</button>
       <button class="tab-btn" id="tab-monthly">This Month</button>
       <button class="tab-btn" id="tab-month">Month</button>
       <button class="tab-btn" id="tab-yearly">Yearly</button>
@@ -1064,15 +1149,18 @@ async function renderSummaryPage() {
     e.target.classList.add('active');
     renderSummaryTab('daily');
   }
+  document.getElementById('tab-weekly').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('weekly');
+  }
   document.getElementById('tab-monthly').onclick = (e) => { 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
     renderSummaryTab('monthly');
   }
   document.getElementById('tab-month').onclick = (e) => { 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    renderSummaryTab('month');
+    showMonthYearSelectionPopup();
   }
   document.getElementById('tab-yearly').onclick = (e) => { 
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -1084,7 +1172,223 @@ async function renderSummaryPage() {
 
 async function renderSummaryTab(type) {
   const content = document.getElementById('tab-content');
-  content.innerHTML = `<div class="card"><p>Summary feature coming soon!</p></div>`;
+  
+  content.innerHTML = `
+    <div class="sub-tabs">
+        <button class="sub-tab-btn active" data-view="charts">Charts</button>
+        <button class="sub-tab-btn" data-view="details">Details</button>
+    </div>
+    <div id="charts-view" class="sub-tab-content active">
+        <div class="summary-section card">
+            <h3 id="bar-chart-title">Daily Spending</h3>
+            <canvas id="summary-bar-chart"></canvas>
+        </div>
+        <div class="summary-section card">
+            <h3 id="pie-chart-title">Category Breakdown</h3>
+            <canvas id="summary-pie-chart"></canvas>
+        </div>
+    </div>
+    <div id="details-view" class="sub-tab-content">
+        <div class="summary-section card">
+            <h3 id="total-spending-title"></h3>
+            <p id="total-spending-amount" class="summary-total">₹0.00</p>
+        </div>
+        <div class="summary-section card">
+            <h3 id="category-table-title"></h3>
+            <div id="category-summary-table"></div>
+        </div>
+    </div>
+  `;
+
+  // Add event listeners for sub-tabs
+  document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+      btn.onclick = (e) => {
+          document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          const view = e.target.dataset.view;
+          document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+          document.getElementById(`${view}-view`).classList.add('active');
+      }
+  });
+
+  const allExpenses = await getAllExpenses();
+  if (allExpenses.length === 0) {
+      content.innerHTML = '<div class="card"><p>No summary to display. Add some expenses first!</p></div>';
+      return;
+  }
+
+  let barChartLabels = [];
+  let barChartData = [];
+  let periodExpenses = []; // Expenses for the pie chart, total, and table
+  const today = new Date();
+  let periodString = '';
+  const currentYear = today.getFullYear();
+
+  if (type === 'daily') {
+    periodString = `Today`;
+    const todayString = getLocalDateString(today);
+    periodExpenses = allExpenses.filter(e => e.date === todayString);
+
+    // Bar chart: show all days of the current month
+    const currentMonth = today.getMonth(); // 0-indexed
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    document.getElementById('bar-chart-title').textContent = `Daily Spending for ${monthShortNames[currentMonth]} ${currentYear}`;
+
+    const labels = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+        labels.push(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`);
+    }
+    barChartLabels = labels.map(d => d.split('-')[2]); // Just show day number
+
+    const expensesThisMonth = allExpenses.filter(e => e.date.startsWith(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`));
+    const dailyGroups = groupBy(expensesThisMonth, e => e.date);
+
+    barChartData = labels.map(label => {
+        const dayExpenses = dailyGroups[label] || [];
+        return dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'weekly') {
+    periodString = `This Week`;
+    
+    // Calculate start and end of current week (Monday to Sunday)
+    const startOfWeek = new Date(today);
+    const dayOfWeek = startOfWeek.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Adjust for Monday start
+    startOfWeek.setDate(today.getDate() + diff);
+    
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    
+    const startDateString = getLocalDateString(startOfWeek);
+    const endDateString = getLocalDateString(endOfWeek);
+    
+    periodExpenses = allExpenses.filter(e => e.date >= startDateString && e.date <= endDateString);
+
+    // Bar chart: show all 7 days of the current week
+    document.getElementById('bar-chart-title').textContent = `Weekly Spending (${startOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${endOfWeek.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`;
+    
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    barChartLabels = dayNames;
+    
+    const labels = [];
+    for (let i = 0; i < 7; i++) {
+        const currentDay = new Date(startOfWeek);
+        currentDay.setDate(startOfWeek.getDate() + i);
+        labels.push(getLocalDateString(currentDay));
+    }
+    
+    const dailyGroups = groupBy(periodExpenses, e => e.date);
+    barChartData = labels.map(label => {
+        const dayExpenses = dailyGroups[label] || [];
+        return dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'monthly') {
+    periodString = `This Month`;
+    const thisMonthString = today.toISOString().slice(0, 7);
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(thisMonthString));
+
+    // Bar chart: show all months of the current year
+    document.getElementById('bar-chart-title').textContent = `Monthly Spending for ${currentYear}`;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    barChartLabels = monthNames;
+
+    const labels = [];
+    for (let i = 1; i <= 12; i++) {
+        labels.push(`${currentYear}-${String(i).padStart(2, '0')}`);
+    }
+
+    const expensesThisYear = allExpenses.filter(e => e.date.startsWith(currentYear.toString()));
+    const monthlyGroups = groupBy(expensesThisYear, e => e.date.slice(0, 7));
+
+    barChartData = labels.map(label => {
+        const monthExpenses = monthlyGroups[label] || [];
+        return monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'month') {
+    // Use selected month and year from global variables
+    const selectedMonth = selectedSummaryMonth;
+    const selectedYear = selectedSummaryYear;
+    
+    const monthString = String(selectedMonth + 1).padStart(2, '0');
+    const yearMonth = `${selectedYear}-${monthString}`;
+    
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(yearMonth));
+    periodString = `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][selectedMonth]} ${selectedYear}`;
+
+    // Bar chart: show all days of the selected month
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    document.getElementById('bar-chart-title').textContent = `Daily Spending for ${periodString}`;
+
+    const labels = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+        labels.push(`${selectedYear}-${monthString}-${String(i).padStart(2, '0')}`);
+    }
+    barChartLabels = labels.map(d => d.split('-')[2]); // Just show day number
+
+    const dailyGroups = groupBy(periodExpenses, e => e.date);
+    barChartData = labels.map(label => {
+        const dayExpenses = dailyGroups[label] || [];
+        return dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'yearly') {
+    periodString = `This Year`;
+    const thisYearString = today.getFullYear().toString();
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(thisYearString));
+    
+    // Hide bar chart for yearly view
+    const barChartSection = document.getElementById('summary-bar-chart')?.parentElement.parentElement;
+    if (barChartSection) {
+        barChartSection.style.display = 'none';
+    }
+  }
+
+  // --- Populate Details View ---
+  document.getElementById('total-spending-title').textContent = `Total Spending ${periodString}`;
+  document.getElementById('category-table-title').textContent = `Category Breakdown for ${periodString}`;
+  const totalSpending = periodExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  document.getElementById('total-spending-amount').textContent = `₹${totalSpending.toFixed(2)}`;
+
+  if (periodExpenses.length > 0) {
+    const categoryGroups = groupBy(periodExpenses, e => e.category);
+    const categoryLabels = Object.keys(categoryGroups).sort();
+    const categoryData = categoryLabels.map(label =>
+      categoryGroups[label].reduce((sum, e) => sum + (e.amount || 0), 0)
+    );
+
+    const tableContainer = document.getElementById('category-summary-table');
+    let tableHTML = '<table class="analyze-table"><thead><tr><th>Category</th><th>Total</th></tr></thead><tbody>';
+    categoryLabels.forEach((label, i) => {
+        tableHTML += `<tr><td>${capitalizeWords(label)}</td><td>₹${categoryData[i].toFixed(2)}</td></tr>`;
+    });
+    tableHTML += '</tbody></table>';
+    tableContainer.innerHTML = tableHTML;
+  } else {
+      document.getElementById('category-summary-table').innerHTML = `<p>No expenses recorded for this period.</p>`;
+  }
+
+  // --- Populate Charts View ---
+  if (type !== 'yearly') {
+    renderBarChart('summary-bar-chart', barChartLabels, barChartData, `Total Spending`);
+  }
+  
+  document.getElementById('pie-chart-title').textContent = `Category Breakdown for ${periodString}`;
+
+  if (periodExpenses.length > 0) {
+    const categoryGroups = groupBy(periodExpenses, e => e.category);
+    const pieChartLabels = Object.keys(categoryGroups).sort();
+    const pieChartData = pieChartLabels.map(label =>
+      categoryGroups[label].reduce((sum, e) => sum + (e.amount || 0), 0)
+    );
+    renderPieChart('summary-pie-chart', pieChartLabels, pieChartData, 'Spending by Category');
+  } else {
+      document.getElementById('summary-pie-chart').parentElement.innerHTML = `<p>No expenses recorded for this period.</p>`;
+  }
 }
 
 function renderSettingsPage() {
@@ -1117,7 +1421,7 @@ function renderSettingsPage() {
                 <p>Get help with setup, learn about features, and view detailed instructions.</p>
                 <div class="help-buttons">
                     <button id="setup-gemini-help">🔑 Gemini API Setup</button>
-                    <button id="detailed-help">📖 Full Guide & Tips</button>
+                    <button id="detailed-help" class="btn-secondary">📖 Full Guide & Tips</button>
                 </div>
             </div>
              <div class="setting-item card">
@@ -1252,15 +1556,27 @@ async function downloadExpensesAsCSV() {
     
     // Apply the same filtering logic as renderExpenses
     if (activeFilter === 'today') {
-      const today = getLocalDateString();
-      filteredExpenses = allExpenses.filter(e => e.date === today);
-    } else if (activeFilter === 'this-month') {
+      filteredExpenses = allExpenses.filter(e => e.date === getLocalDateString());
+    } else if (activeFilter === 'this-week') {
+     
+     
       const today = new Date();
-      const thisMonth = today.getMonth();
-      const thisYear = today.getFullYear();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      
       filteredExpenses = allExpenses.filter(e => {
         const expenseDate = new Date(e.date);
-        return expenseDate.getMonth() === thisMonth && expenseDate.getFullYear() === thisYear;
+        return expenseDate >= startOfWeek && expenseDate <= endOfWeek;
+      });
+    } else if (activeFilter === 'this-month') {
+      const today = new Date();
+      const month = today.getMonth();
+      const year = today.getFullYear();
+      filteredExpenses = allExpenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate.getMonth() === month && expenseDate.getFullYear() === year;
       });
     } else if (activeFilter === 'specific-month') {
       const monthSelect = document.getElementById('month-select');
@@ -1323,6 +1639,13 @@ async function downloadExpensesAsCSV() {
     let filename = 'expenses';
     if (activeFilter === 'today') {
       filename += `_${getLocalDateString()}`;
+    } else if (activeFilter === 'this-week') {
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      filename += `_week_${startOfWeek.toISOString().split('T')[0]}_to_${endOfWeek.toISOString().split('T')[0]}`;
     } else if (activeFilter === 'this-month') {
       const today = new Date();
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1426,17 +1749,27 @@ async function renderExpenses() {
   let filteredExpenses = allExpenses;
   
   if (activeFilter === 'today') {
-    const today = getLocalDateString();
-    filteredExpenses = allExpenses.filter(e => e.date === today);
-  } else if (activeFilter === 'this-month') {
-    const today = new Date();
-    const thisMonth = today.getMonth();
-    const thisYear = today.getFullYear();
-    filteredExpenses = allExpenses.filter(e => {
-      const expenseDate = new Date(e.date);
-      return expenseDate.getMonth() === thisMonth && expenseDate.getFullYear() === thisYear;
-    });
-  }
+    filteredExpenses = allExpenses.filter(e => e.date === getLocalDateString());
+  } else if (activeFilter === 'this-week') {
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      
+      filteredExpenses = allExpenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate >= startOfWeek && expenseDate <= endOfWeek;
+      });
+    } else if (activeFilter === 'this-month') {
+      const today = new Date();
+      const month = today.getMonth();
+      const year = today.getFullYear();
+      filteredExpenses = allExpenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate.getMonth() === month && expenseDate.getFullYear() === year;
+      });
+    }
   
   // Get checked categories
   const checkedCategories = Array.from(document.querySelectorAll('.category-filter-checkbox:checked')).map(cb => cb.value);
@@ -1606,6 +1939,200 @@ async function triggerSync(interactive = false) {
         if(driveMsg) driveMsg.textContent = '';
         if(interactive) renderGoogleAccountStatus();
     }
+}
+
+// Chart rendering functions
+if (!window._charts) {
+    window._charts = {};
+}
+
+function renderBarChart(canvasId, labels, data, chartLabel) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) {
+    console.error(`Canvas element with id "${canvasId}" not found`);
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    console.error(`Cannot get 2D context for canvas "${canvasId}"`);
+    return;
+  }
+
+  // Destroy existing chart if it exists
+  if (window._charts && window._charts[canvasId]) {
+    window._charts[canvasId].destroy();
+  }
+
+  // Ensure _charts object exists
+  if (!window._charts) {
+    window._charts = {};
+  }
+
+  // Create new chart
+  window._charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: chartLabel,
+        data,
+        backgroundColor: 'rgba(46, 125, 50, 0.8)',
+        borderColor: 'rgba(46, 125, 50, 1)',
+        borderWidth: 1,
+        hoverBackgroundColor: 'rgba(46, 125, 50, 1)',
+        hoverBorderColor: 'rgba(46, 125, 50, 1)',
+        hoverBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      plugins: {
+        legend: { 
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(224, 224, 224, 0.1)'
+          },
+          ticks: {
+            color: '#a0a0a0',
+            maxTicksLimit: 6,
+            callback: function(value) {
+              return '₹' + value;
+            }
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#a0a0a0',
+            maxTicksLimit: 15,
+            maxRotation: 45
+          }
+        }
+      },
+      elements: {
+        bar: {
+          borderRadius: 4,
+          borderSkipped: false
+        }
+      }
+    }
+  });
+}
+
+function renderPieChart(canvasId, labels, data, chartLabel) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) {
+    console.error(`Canvas element with id "${canvasId}" not found`);
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    console.error(`Cannot get 2D context for canvas "${canvasId}"`);
+    return;
+  }
+
+  // Destroy existing chart if it exists
+  if (window._charts && window._charts[canvasId]) {
+    window._charts[canvasId].destroy();
+  }
+
+  // Ensure _charts object exists
+  if (!window._charts) {
+    window._charts = {};
+  }
+
+  const total = data.reduce((acc, val) => acc + val, 0);
+  
+  // Color palette for the pie chart
+  const themeColors = [
+    '#2E7D32', // Primary accent green
+    '#388E3C', // Lighter green
+    '#43A047', // Even lighter green
+    '#66BB6A', // Light green
+    '#81C784', // Very light green
+    '#1B5E20', // Dark green
+    '#4CAF50', // Material green
+    '#8BC34A', // Light green variant
+    '#689F38'  // Olive green
+  ];
+
+  const backgroundColors = labels.map((_, i) => themeColors[i % themeColors.length]);
+
+  // Create new chart
+  window._charts[canvasId] = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels,
+      datasets: [{
+        label: chartLabel,
+        data,
+        backgroundColor: backgroundColors,
+        borderColor: '#1E1E1E',
+        borderWidth: 2,
+        hoverOffset: 8,
+        hoverBorderWidth: 3,
+        hoverBorderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: {
+          top: 5,
+          bottom: 5,
+          left: 10,
+          right: 10
+        }
+      },
+      interaction: {
+        intersect: false,
+        mode: 'nearest'
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        tooltip: {
+          callbacks: {
+            label: function(context) {
+              const value = context.raw;
+              const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+              return `${context.label}: ₹${value.toFixed(2)} (${percentage}%)`;
+            }
+          }
+        }
+      },
+      elements: {
+        arc: {
+          borderRadius: 6,
+          hoverBorderRadius: 10,
+          borderWidth: 2,
+          hoverBorderWidth: 3
+        }
+      },
+      cutout: '20%',
+      radius: '90%',
+      animation: {
+        animateRotate: true,
+        animateScale: true
+      }
+    }
+  });
 }
 
 // Initialize the app
