@@ -1,6 +1,6 @@
 const CACHE_NAME = 'ai-expense-tracker-v1.4.0'; // Increment this for each update
-const STATIC_CACHE_NAME = 'ai-expense-tracker-static-v1.4.0';
-const DYNAMIC_CACHE_NAME = 'ai-expense-tracker-dynamic-v1.4.0';
+const STATIC_CACHE_NAME = 'ai-expense-tracker-static-v1.5.0';
+const DYNAMIC_CACHE_NAME = 'ai-expense-tracker-dynamic-v1.5.0';
 const BASE_PATH = '/AI-expense-tracker-pwa';
 
 const STATIC_FILES = [
