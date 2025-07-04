@@ -377,6 +377,29 @@ button.btn-danger {
   background-color: var(--danger-color);
 }
 
+/* Action Icons Styling */
+.action-icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+}
+
+.btn-edit .action-icon {
+  stroke: var(--accent-color);
+}
+
+.btn-delete .action-icon {
+  stroke: #ef4444;
+}
+
+.btn-edit:hover .action-icon {
+  stroke: var(--text-color);
+}
+
+.btn-delete:hover .action-icon {
+  stroke: #dc2626;
+}
+
 /* Loader Animation */
 .loader {
   display: inline-block;
@@ -1074,7 +1097,7 @@ h2 {
 
 .dropdown-controls {
     display: flex;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 /* Dropdown Styles */
@@ -1086,7 +1109,7 @@ h2 {
 .dropdown-btn {
     background-color: var(--secondary-color);
     color: var(--text-color);
-    padding: 0.75rem 1.5rem;
+    padding: 0.6rem 1.2rem;
     font-size: 0.9rem;
     font-weight: 500;
     border: none;
@@ -1095,6 +1118,7 @@ h2 {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    white-space: nowrap;
 }
 
 .dropdown-btn::after {
@@ -1106,11 +1130,12 @@ h2 {
     display: none;
     position: absolute;
     background-color: var(--secondary-color);
-    min-width: 200px;
+    min-width: 140px;
+    width: max-content;
     box-shadow: 0px 8px 16px 0px var(--shadow-dark);
     z-index: 1;
     border-radius: var(--border-radius);
-    padding: 0.5rem;
+    padding: 0.4rem;
     margin-top: 0.5rem;
     right: 0; /* Align to the right */
 }
@@ -1135,11 +1160,12 @@ h2 {
 
 #view-dropdown-content a {
     color: var(--text-color);
-    padding: 12px 16px;
+    padding: 0.3rem 0.5rem;
     text-decoration: none;
     display: block;
-    border-radius: 8px;
+    border-radius: 6px;
     transition: background-color 0.2s;
+    font-size: 0.85rem;
 }
 
 #view-dropdown-content a:hover {
@@ -1150,19 +1176,21 @@ h2 {
 
 /* Category Dropdown */
 #category-dropdown-content {
-    max-height: 250px;
+    max-height: 280px;
     overflow-y: auto;
+    width: 100%; /* Match the width of the parent container (button) */
+    min-width: auto; /* Remove fixed min-width */
 }
 
 .category-filter-label {
-    display: block;
-    padding: 10px 12px;
-    cursor: pointer;
-    border-radius: 8px;
-    transition: background-color 0.2s;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.4rem;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    font-size: 0.85rem;
 }
 
 .category-filter-label:hover {
@@ -1170,6 +1198,29 @@ h2 {
 }
 
 .category-filter-checkbox {
+    width: 1.2em;
+    height: 1.2em;
+    accent-color: var(--accent-color);
+    cursor: pointer;
+}
+
+/* View Radio Button Styling */
+.view-option-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s;
+    font-size: 0.85rem;
+}
+
+.view-option-label:hover {
+    background-color: var(--primary-color);
+}
+
+.view-option-radio {
     width: 1.2em;
     height: 1.2em;
     accent-color: var(--accent-color);
@@ -1623,4 +1674,45 @@ h2 {
 
 #recent-expenses-container h2 {
   margin-bottom: 1rem;
+}
+
+/* Download CSV Button */
+#download-csv-btn {
+  background-color: var(--secondary-color);
+  color: var(--text-color);
+  border: none;
+  padding: 0.6rem 0.8rem;
+  border-radius: var(--border-radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#download-csv-btn:hover {
+  background-color: var(--primary-color);
+}
+
+.download-icon {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+}
+
+/* Indeterminate checkbox styling */
+input[type="checkbox"]:indeterminate {
+  background-color: var(--accent-color);
+  border-color: var(--accent-color);
+}
+
+input[type="checkbox"]:indeterminate::before {
+  content: '−';
+  color: white;
+  font-weight: bold;
+  display: block;
+  text-align: center;
+  line-height: 1;
 }

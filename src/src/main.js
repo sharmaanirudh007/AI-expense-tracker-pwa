@@ -21,7 +21,10 @@ const ICONS = {
   summary: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg>',
   settings: '<svg class="nav-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
   eyeOpen: '<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
-  eyeClosed: '<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>'
+  eyeClosed: '<svg class="eye-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>',
+  edit: '<svg class="action-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>',
+  delete: '<svg class="action-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,6 5,6 21,6"></polyline><path d="M19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
+  download: '<svg class="download-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7,10 12,15 17,10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>'
 };
 
 const app = document.querySelector('#app')
@@ -533,8 +536,8 @@ async function renderRecentExpenses() {
           <div class="expense-actions">
             <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
             <div class="expense-buttons">
-              <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-              <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
+              <button class="btn-edit" onclick="editExpense(${e.id})">${ICONS.edit}</button>
+              <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">${ICONS.delete}</button>
             </div>
           </div>
         </div>
@@ -552,6 +555,10 @@ async function renderExpensesPage() {
             <button id="category-dropdown-btn" class="dropdown-btn">Categories</button>
             <div id="category-dropdown-content" class="dropdown-content">
                 <div id="category-filters">
+                    <label class="category-filter-label">
+                        <input type="checkbox" class="category-filter-checkbox" id="select-all-categories" checked>
+                        Select All
+                    </label>
                     ${categories.map(c => `
                         <label class="category-filter-label">
                             <input type="checkbox" class="category-filter-checkbox" value="${c}" checked>
@@ -568,8 +575,14 @@ async function renderExpensesPage() {
     <div class="dropdown-container">
         <button id="view-dropdown-btn" class="dropdown-btn" data-view="list">View: List</button>
         <div id="view-dropdown-content" class="dropdown-content">
-            <a href="#" class="view-option" data-view="list">List</a>
-            <a href="#" class="view-option" data-view="category">Category</a>
+            <label class="view-option-label">
+                <input type="radio" name="view-option" class="view-option-radio" data-view="list" checked>
+                List
+            </label>
+            <label class="view-option-label">
+                <input type="radio" name="view-option" class="view-option-radio" data-view="category">
+                Category
+            </label>
         </div>
     </div>
   `;
@@ -586,6 +599,7 @@ async function renderExpensesPage() {
         <div class="dropdown-controls">
             ${viewDropdownHTML}
             ${categoryDropdownHTML}
+            <button id="download-csv-btn" class="btn-icon" title="Download CSV">${ICONS.download}</button>
         </div>
     </div>
     <div id="specific-month-picker" class="specific-month-picker card" style="display: none;">
@@ -690,9 +704,8 @@ async function renderExpensesPage() {
   });
 
   // View selection
-  document.querySelectorAll('.view-option').forEach(option => {
-    option.onclick = (e) => {
-        e.preventDefault();
+  document.querySelectorAll('.view-option-radio').forEach(option => {
+    option.onchange = (e) => {
         const selectedView = e.target.dataset.view;
         const viewBtn = document.getElementById('view-dropdown-btn');
         viewBtn.dataset.view = selectedView;
@@ -706,9 +719,22 @@ async function renderExpensesPage() {
   if (categories.length > 0) {
     document.querySelectorAll('.category-filter-checkbox').forEach(checkbox => {
         checkbox.onchange = () => {
+            updateSelectAllState();
             renderExpenses();
         };
     });
+    
+    // Select All functionality
+    const selectAllCheckbox = document.getElementById('select-all-categories');
+    if (selectAllCheckbox) {
+      selectAllCheckbox.onchange = () => {
+        const isChecked = selectAllCheckbox.checked;
+        document.querySelectorAll('.category-filter-checkbox').forEach(checkbox => {
+          checkbox.checked = isChecked;
+        });
+        renderExpenses();
+      };
+    }
   }
 
   // Specific month apply
@@ -757,6 +783,11 @@ async function renderExpensesPage() {
     errorEl.textContent = '';
     errorEl.style.display = 'none';
     renderExpenses();
+  };
+
+  // CSV Download functionality
+  document.getElementById('download-csv-btn').onclick = async () => {
+    await downloadExpensesAsCSV();
   };
 
   // Initial render
@@ -1209,6 +1240,151 @@ async function init() {
   }
 }
 
+// CSV Download functionality
+async function downloadExpensesAsCSV() {
+  try {
+    const allExpenses = await getAllExpenses();
+    
+    // Get the same filtered expenses that are currently displayed
+    const activeFilter = document.querySelector('.btn-filter.active')?.dataset.filter || 'today';
+    
+    let filteredExpenses = allExpenses;
+    
+    // Apply the same filtering logic as renderExpenses
+    if (activeFilter === 'today') {
+      const today = getLocalDateString();
+      filteredExpenses = allExpenses.filter(e => e.date === today);
+    } else if (activeFilter === 'this-month') {
+      const today = new Date();
+      const thisMonth = today.getMonth();
+      const thisYear = today.getFullYear();
+      filteredExpenses = allExpenses.filter(e => {
+        const expenseDate = new Date(e.date);
+        return expenseDate.getMonth() === thisMonth && expenseDate.getFullYear() === thisYear;
+      });
+    } else if (activeFilter === 'specific-month') {
+      const monthSelect = document.getElementById('month-select');
+      const yearInput = document.getElementById('year-input');
+      if (monthSelect && yearInput && yearInput.value) {
+        const selectedMonth = parseInt(monthSelect.value);
+        const selectedYear = parseInt(yearInput.value);
+        filteredExpenses = allExpenses.filter(e => {
+          const expenseDate = new Date(e.date);
+          return expenseDate.getMonth() === selectedMonth && expenseDate.getFullYear() === selectedYear;
+        });
+      }
+    } else if (activeFilter === 'custom') {
+      const startDateInput = document.getElementById('start-date');
+      const endDateInput = document.getElementById('end-date');
+      if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        filteredExpenses = allExpenses.filter(e => {
+          const expenseDate = new Date(e.date);
+          return expenseDate >= startDate && expenseDate <= endDate;
+        });
+      }
+    }
+    
+    // Apply category filters
+    const checkedCategories = Array.from(document.querySelectorAll('.category-filter-checkbox:checked')).map(cb => cb.value);
+    if (checkedCategories.length > 0 && checkedCategories.length < [...new Set(allExpenses.map(e => e.category))].length) {
+      filteredExpenses = filteredExpenses.filter(e => checkedCategories.includes(e.category));
+    }
+    
+    if (filteredExpenses.length === 0) {
+      showNotification('No expenses to download for the current filter.', 'info');
+      return;
+    }
+    
+    // Sort by date descending (same as display)
+    filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Generate CSV content
+    const csvHeaders = ['Date', 'Description', 'Amount (₹)', 'Category', 'Payment Mode'];
+    const csvRows = filteredExpenses.map(expense => [
+      expense.date,
+      `"${expense.description.replace(/"/g, '""')}"`, // Escape quotes in description
+      expense.amount.toFixed(2),
+      expense.category,
+      expense.paymentMode || 'UPI'
+    ]);
+    
+    const csvContent = [
+      csvHeaders.join(','),
+      ...csvRows.map(row => row.join(','))
+    ].join('\n');
+    
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    // Generate filename based on current filter
+    let filename = 'expenses';
+    if (activeFilter === 'today') {
+      filename += `_${getLocalDateString()}`;
+    } else if (activeFilter === 'this-month') {
+      const today = new Date();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      filename += `_${monthNames[today.getMonth()]}_${today.getFullYear()}`;
+    } else if (activeFilter === 'specific-month') {
+      const monthSelect = document.getElementById('month-select');
+      const yearInput = document.getElementById('year-input');
+      if (monthSelect && yearInput && yearInput.value) {
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        filename += `_${monthNames[parseInt(monthSelect.value)]}_${yearInput.value}`;
+      }
+    } else if (activeFilter === 'custom') {
+      const startDateInput = document.getElementById('start-date');
+      const endDateInput = document.getElementById('end-date');
+      if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+        filename += `_${startDateInput.value}_to_${endDateInput.value}`;
+      }
+    }
+    filename += '.csv';
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      showNotification(`Downloaded ${filteredExpenses.length} expenses as ${filename}`, 'success');
+    }
+  } catch (error) {
+    console.error('Failed to download CSV:', error);
+    showNotification('Failed to download CSV file', 'error');
+  }
+}
+
+// Update Select All checkbox state based on individual category checkboxes
+function updateSelectAllState() {
+  const selectAllCheckbox = document.getElementById('select-all-categories');
+  const categoryCheckboxes = document.querySelectorAll('.category-filter-checkbox');
+  
+  if (selectAllCheckbox && categoryCheckboxes.length > 0) {
+    const checkedCount = Array.from(categoryCheckboxes).filter(cb => cb.checked).length;
+    
+    if (checkedCount === 0) {
+      // None selected
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = false;
+    } else if (checkedCount === categoryCheckboxes.length) {
+      // All selected
+      selectAllCheckbox.checked = true;
+      selectAllCheckbox.indeterminate = false;
+    } else {
+      // Partially selected
+      selectAllCheckbox.checked = false;
+      selectAllCheckbox.indeterminate = true;
+    }
+  }
+}
+
 // Missing utility functions
 function groupBy(array, keyFn) {
   return array.reduce((result, item) => {
@@ -1241,6 +1417,7 @@ async function renderExpenses() {
   
   if (!list) return;
   
+   
   // Get active filters
   const activeFilter = document.querySelector('.btn-filter.active')?.dataset.filter || 'today';
   const activeView = document.querySelector('#view-dropdown-btn')?.dataset.view || 'list';
@@ -1288,8 +1465,8 @@ async function renderExpenses() {
         <div class="expense-actions">
           <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
           <div class="expense-buttons">
-            <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-            <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
+            <button class="btn-edit" onclick="editExpense(${e.id})">${ICONS.edit}</button>
+            <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">${ICONS.delete}</button>
           </div>
         </div>
       </div>
@@ -1316,8 +1493,8 @@ async function renderExpenses() {
                        <div class="expense-actions">
                          <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
                          <div class="expense-buttons">
-                           <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-                           <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
+                           <button class="btn-edit" onclick="editExpense(${e.id})">${ICONS.edit}</button>
+                           <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">${ICONS.delete}</button>
                          </div>
                        </div>
                     </div>
