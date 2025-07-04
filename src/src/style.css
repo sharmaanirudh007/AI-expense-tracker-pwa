@@ -1585,3 +1585,42 @@ h2 {
     padding: 0.5rem;
   }
 }
+
+/* Smart Insights Component */
+#smart-insight-container {
+  margin-bottom: 2rem;
+}
+
+#smart-insight-container h2 {
+  margin-bottom: 1rem;
+}
+
+#smart-insight-card {
+  background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+  border: 1px solid var(--border-color);
+  border-left: 4px solid var(--accent-color);
+}
+
+#smart-insight-card p {
+  margin: 0;
+  color: var(--text-color);
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+#smart-insight-card .insight-text {
+  font-weight: 500;
+  color: var(--text-color);
+  font-style: italic;
+  line-height: 1.7;
+  font-size: 1rem;
+}
+
+/* Recent Activity Component */
+#recent-expenses-container {
+  margin-top: 2rem;
+}
+
+#recent-expenses-container h2 {
+  margin-bottom: 1rem;
+}
