@@ -450,13 +450,13 @@ function renderForm() {
       submitBtn.disabled = false
       submitBtn.innerHTML = originalText
       
-      showExpenseConfirmationPopup(expense, async (updatedExpense) => {
-        await addExpense(updatedExpense)
+      showExpenseConfirmationPopup(expense, async () => {
+        await addExpense(expense)
         e.target.reset()
         document.getElementById('error-msg').textContent = ''
+        // Automatically sync after adding an expense
+        triggerSync(false);
         showNotification('Expense added successfully!', 'success');
-        // Automatically sync after adding an expense (with slight delay so notification is visible)
-        setTimeout(() => triggerSync(false), 1000);
         // If user is on expenses page, refresh it
         if (document.querySelector('#expenses-list')) {
             renderExpenses();
@@ -527,7 +527,8 @@ async function renderRecentExpenses() {
             <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
             <div class="expense-details">
               <span class="expense-description">${capitalizeWords(e.description)}</span>
-              <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
+              <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+              <span class="expense-payment-mode">${e.paymentMode || 'UPI'}</span>
             </div>
           </div>
           <div class="expense-actions">
@@ -875,12 +876,12 @@ function showEditExpensePopup(expense) {
       if (document.querySelector('#expenses-list')) {
         renderExpenses();
       }
-      if (document.querySelector('#recent-expenses-list')) {
+      if (document.querySelector('#recent-expenses')) {
         renderRecentExpenses();
       }
       
-      // Trigger sync (with slight delay so notification is visible)
-      setTimeout(() => triggerSync(false), 1000);
+      // Trigger sync
+      triggerSync(false);
     } catch (error) {
       showNotification('Failed to update expense', 'error');
       console.error('Error updating expense:', error);
@@ -935,12 +936,12 @@ function showDeleteConfirmationPopup(expense, id) {
       if (document.querySelector('#expenses-list')) {
         renderExpenses();
       }
-      if (document.querySelector('#recent-expenses-list')) {
+      if (document.querySelector('#recent-expenses')) {
         renderRecentExpenses();
       }
       
-      // Trigger sync (with slight delay so notification is visible)
-      setTimeout(() => triggerSync(false), 1000);
+      // Trigger sync
+      triggerSync(false);
     } catch (error) {
       showNotification('Failed to delete expense', 'error');
       console.error('Error deleting expense:', error);
@@ -1223,16 +1224,16 @@ function groupBy(array, keyFn) {
 
 function getCategoryIcon(category) {
   const icons = {
-    Food: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3z"></path></svg>',
-    Transport: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M5 17h-2v-6l2-5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"></path></svg>',
-    Shopping: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>',
-    Utilities: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>',
-    Entertainment: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>',
-    Health: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
-    Education: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
-    Other: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>'
+    Food: '🍽️',
+    Transport: '🚗',
+    Shopping: '🛒',
+    Utilities: '⚡',
+    Entertainment: '🎬',
+    Health: '🏥',
+    Education: '📚',
+    Other: '📦'
   };
-  return icons[category] || icons.Other;
+  return icons[category] || '📦';
 }
 
 async function renderExpenses() {
@@ -1282,7 +1283,8 @@ async function renderExpenses() {
           <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
           <div class="expense-details">
             <span class="expense-description">${capitalizeWords(e.description)}</span>
-            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
+            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+            <span class="expense-payment-mode">${e.paymentMode || 'UPI'}</span>
           </div>
         </div>
         <div class="expense-actions">
@@ -1310,7 +1312,8 @@ async function renderExpenses() {
                          <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
                          <div class="expense-details">
                            <span class="expense-description">${capitalizeWords(e.description)}</span>
-                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
+                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+                           <span class="expense-payment-mode">${e.paymentMode || 'UPI'}</span>
                          </div>
                        </div>
                        <div class="expense-actions">

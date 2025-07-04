@@ -1282,7 +1282,8 @@ async function renderExpenses() {
           <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
           <div class="expense-details">
             <span class="expense-description">${capitalizeWords(e.description)}</span>
-            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
+            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+            <span class="expense-payment-mode">${e.paymentMode || 'UPI'}</span>
           </div>
         </div>
         <div class="expense-actions">
@@ -1310,7 +1311,8 @@ async function renderExpenses() {
                          <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
                          <div class="expense-details">
                            <span class="expense-description">${capitalizeWords(e.description)}</span>
-                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
+                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+                           <span class="expense-payment-mode">${e.paymentMode || 'UPI'}</span>
                          </div>
                        </div>
                        <div class="expense-actions">

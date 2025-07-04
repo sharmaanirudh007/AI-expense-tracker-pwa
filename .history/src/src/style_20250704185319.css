@@ -256,13 +256,7 @@ button.btn-danger {
 #expenses-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-#recent-expenses-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .expense-item {
@@ -296,13 +290,6 @@ button.btn-danger {
   justify-content: center;
   background-color: var(--secondary-color);
   border-radius: 50%;
-  color: var(--accent-color);
-}
-
-.expense-category-icon svg {
-  width: 22px;
-  height: 22px;
-  stroke: var(--accent-color);
 }
 
 .category-svg-icon {
@@ -408,13 +395,7 @@ button.btn-danger {
 #expenses-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-#recent-expenses-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .expense-item {
@@ -448,13 +429,6 @@ button.btn-danger {
   justify-content: center;
   background-color: var(--secondary-color);
   border-radius: 50%;
-  color: var(--accent-color);
-}
-
-.expense-category-icon svg {
-  width: 22px;
-  height: 22px;
-  stroke: var(--accent-color);
 }
 
 .category-svg-icon {

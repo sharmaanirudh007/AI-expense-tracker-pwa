@@ -342,15 +342,7 @@ function showExpenseConfirmationPopup(expense, onConfirm) {
       </div>
       <p><strong>Category:</strong> ${expense.category}</p>
       <p><strong>Date:</strong> ${formattedDate}</p>
-      <div class="form-group" style="margin: 1rem 0;">
-        <label for="confirm-payment-mode"><strong>Payment Mode:</strong></label>
-        <select id="confirm-payment-mode" style="margin-top: 0.5rem;">
-          <option value="UPI" ${expense.paymentMode === 'UPI' ? 'selected' : ''}>UPI</option>
-          <option value="Credit Card" ${expense.paymentMode === 'Credit Card' ? 'selected' : ''}>Credit Card</option>
-          <option value="Debit Card" ${expense.paymentMode === 'Debit Card' ? 'selected' : ''}>Debit Card</option>
-          <option value="Cash" ${expense.paymentMode === 'Cash' ? 'selected' : ''}>Cash</option>
-        </select>
-      </div>
+      <p><strong>Payment Mode:</strong> ${expense.paymentMode}</p>
       <div class="popup-buttons">
         <button id="cancel-add-expense" class="btn-secondary">Cancel</button>
         <button id="confirm-add-expense">Confirm</button>
@@ -361,12 +353,8 @@ function showExpenseConfirmationPopup(expense, onConfirm) {
   document.body.appendChild(popup);
 
   document.getElementById('confirm-add-expense').onclick = () => {
-    // Get the updated payment mode from the dropdown
-    const updatedPaymentMode = document.getElementById('confirm-payment-mode').value;
-    const updatedExpense = { ...expense, paymentMode: updatedPaymentMode };
-    
     if(document.body.contains(popup)) document.body.removeChild(popup);
-    onConfirm(updatedExpense);
+    onConfirm();
   };
 
   document.getElementById('cancel-add-expense').onclick = () => {
@@ -450,13 +438,13 @@ function renderForm() {
       submitBtn.disabled = false
       submitBtn.innerHTML = originalText
       
-      showExpenseConfirmationPopup(expense, async (updatedExpense) => {
-        await addExpense(updatedExpense)
+      showExpenseConfirmationPopup(expense, async () => {
+        await addExpense(expense)
         e.target.reset()
         document.getElementById('error-msg').textContent = ''
+        // Automatically sync after adding an expense
+        triggerSync(false);
         showNotification('Expense added successfully!', 'success');
-        // Automatically sync after adding an expense (with slight delay so notification is visible)
-        setTimeout(() => triggerSync(false), 1000);
         // If user is on expenses page, refresh it
         if (document.querySelector('#expenses-list')) {
             renderExpenses();
@@ -527,7 +515,8 @@ async function renderRecentExpenses() {
             <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
             <div class="expense-details">
               <span class="expense-description">${capitalizeWords(e.description)}</span>
-              <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
+              <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+              <span class="expense-payment-mode">${e.paymentMode || 'UPI'}</span>
             </div>
           </div>
           <div class="expense-actions">
@@ -875,12 +864,12 @@ function showEditExpensePopup(expense) {
       if (document.querySelector('#expenses-list')) {
         renderExpenses();
       }
-      if (document.querySelector('#recent-expenses-list')) {
+      if (document.querySelector('#recent-expenses')) {
         renderRecentExpenses();
       }
       
-      // Trigger sync (with slight delay so notification is visible)
-      setTimeout(() => triggerSync(false), 1000);
+      // Trigger sync
+      triggerSync(false);
     } catch (error) {
       showNotification('Failed to update expense', 'error');
       console.error('Error updating expense:', error);
@@ -935,12 +924,12 @@ function showDeleteConfirmationPopup(expense, id) {
       if (document.querySelector('#expenses-list')) {
         renderExpenses();
       }
-      if (document.querySelector('#recent-expenses-list')) {
+      if (document.querySelector('#recent-expenses')) {
         renderRecentExpenses();
       }
       
-      // Trigger sync (with slight delay so notification is visible)
-      setTimeout(() => triggerSync(false), 1000);
+      // Trigger sync
+      triggerSync(false);
     } catch (error) {
       showNotification('Failed to delete expense', 'error');
       console.error('Error deleting expense:', error);
@@ -1057,379 +1046,141 @@ async function renderSummaryTab(type) {
 }
 
 function renderSettingsPage() {
-    document.getElementById('page-content').innerHTML = `
-        <h2>Settings</h2>
-        <div class="settings-container">
-            <div class="setting-item card">
-                <h3>Gemini API Key</h3>
-                <p>Your API key is stored securely in your browser's local storage.</p>
-                <div class="key-input-container">
-                    <input type="password" id="gemini-key-input" value="${getGeminiKey()}">
-                    <button id="toggle-key-visibility" class="toggle-visibility-btn" title="Show API Key">${ICONS.eyeOpen}</button>
-                </div>
-                <div class="gemini-key-buttons">
-                    <button id="save-gemini-key">Save Key</button>
-                    <button id="clear-gemini-key" class="btn-secondary">Clear Key</button>
-                </div>
-            </div>
-            <div class="setting-item card">
-                <h3>Google Drive Sync</h3>
-                <p>Backup and restore your expenses with Google Drive.</p>
-                <div class="drive-buttons">
-                    <button id="sync-drive">Sync to Drive</button>
-                    <button id="load-drive">Load from Drive</button>
-                </div>
-                <div id="drive-msg" class="drive-message"></div>
-            </div>
-            <div class="setting-item card">
-                <h3>📚 Help & Setup Guide</h3>
-                <p>Get help with setup, learn about features, and view detailed instructions.</p>
-                <div class="help-buttons">
-                    <button id="setup-gemini-help">🔑 Gemini API Setup</button>
-                    <button id="detailed-help">📖 Full Guide & Tips</button>
-                </div>
-            </div>
-             <div class="setting-item card">
-                <h3>Danger Zone</h3>
-                <p>Clear all locally stored expense data.</p>
-                <button id="clear-data-btn" class="btn-danger">Clear All Expenses</button>
-            </div>
-        </div>
-    `;
-
-    // Initialize key input
-    const keyInput = document.getElementById('gemini-key-input');
-    keyInput.value = getGeminiKey();
-
-    document.getElementById('save-gemini-key').onclick = () => {
-        const key = document.getElementById('gemini-key-input').value;
-        setGeminiKey(key);
-        showNotification('Gemini API Key saved!', 'success');
-    };
-
-    document.getElementById('clear-gemini-key').onclick = () => {
-        if (confirm('Are you sure you want to clear your Gemini API key? You will lose access to AI features until you add it again.')) {
-            setGeminiKey('');
-            document.getElementById('gemini-key-input').value = '';
-            showNotification('Gemini API Key cleared!', 'info');
-        }
-    };
-
-    document.getElementById('toggle-key-visibility').onclick = () => {
-        const keyInput = document.getElementById('gemini-key-input');
-        const toggleBtn = document.getElementById('toggle-key-visibility');
-        
-        if (keyInput.type === 'password') {
-            keyInput.type = 'text';
-            toggleBtn.innerHTML = ICONS.eyeClosed;
-            toggleBtn.title = 'Hide API Key';
-        } else {
-            keyInput.type = 'password';
-            toggleBtn.innerHTML = ICONS.eyeOpen;
-            toggleBtn.title = 'Show API Key';
-        }
-    };
-
-    document.getElementById('setup-gemini-help').onclick = () => {
-        showGeminiKeyPopup(false);
-    };
-
-    document.getElementById('detailed-help').onclick = () => {
-        showDetailedInstructions();
-    };
-
-    document.getElementById('sync-drive').onclick = () => triggerSync(true);
-    document.getElementById('load-drive').onclick = async () => {
-        const driveMsg = document.getElementById('drive-msg');
-        driveMsg.textContent = '';
-
-        try {
-          let signedIn = await isSignedIn();
-          if (!signedIn) {
-            showNotification('Please sign in to Google to load from Drive.', 'info');
-            await signInGoogle();
-            renderGoogleAccountStatus();
-          }
-          signedIn = await isSignedIn();
-          if (!signedIn) {
-            showNotification('Google Sign-In is required to load from Drive.', 'error');
-            return;
-          }
-
-          showNotification('Opening Google Drive file picker...', 'info');
-          const fileContent = await pickAndDownloadFromDrive();
-
-          if (fileContent === null) {
-            showNotification('File selection cancelled.', 'info');
-            return;
-          }
-
-          showNotification('Restoring expenses from backup...', 'info');
-
-          const expenses = JSON.parse(fileContent);
-          if (!Array.isArray(expenses)) {
-            throw new Error("Invalid backup file format.");
-          }
-
-          await clearExpenses();
-          for (const expense of expenses) {
-            const { id, ...expenseToSave } = expense;
-            await addExpense(expenseToSave);
-          }
-          
-          showNotification('Expenses successfully restored from Google Drive!', 'success');
-
-        } catch (e) {
-          console.error('Google Drive load failed:', e);
-          showNotification(`Google Drive load failed: ${e.message}`, 'error');
-        }
-    };
-
-    document.getElementById('clear-data-btn').onclick = async () => {
-        if (confirm('Are you sure you want to delete all your local expense data? This cannot be undone.')) {
-            await clearExpenses();
-            showNotification('All local expenses have been cleared.', 'success');
-        }
-    };
-}
-
-// Initialize app
-async function init() {
-  await checkVersion();
-  renderNav();
-  renderForm();
-  renderGoogleAccountStatus();
-  renderSmartInsight();
-  renderRecentExpenses();
-  trySilentSignIn();
+  document.getElementById('page-content').innerHTML = `
+    <h2>Settings</h2>
+    <div class="settings-section card">
+      <h3>Manual Expense Entry</h3>
+      <p>Add expenses manually without using AI.</p>
+      <button id="add-manual-expense-btn" class="btn-primary">Add Manual Expense</button>
+    </div>
+    <div class="settings-section card">
+      <h3>AI Configuration</h3>
+      <p>Configure your Gemini API key for AI-powered expense tracking.</p>
+      <button id="configure-ai-btn" class="btn-secondary">Configure AI</button>
+    </div>
+    <div class="settings-section card">
+      <h3>Data Management</h3>
+      <p>Clear all your expense data.</p>
+      <button id="clear-data-btn" class="btn-danger">Clear All Data</button>
+    </div>
+  `
   
-  // Register service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
-  }
-}
-
-// Missing utility functions
-function groupBy(array, keyFn) {
-  return array.reduce((result, item) => {
-    const key = keyFn(item);
-    if (!result[key]) {
-      result[key] = [];
-    }
-    result[key].push(item);
-    return result;
-  }, {});
-}
-
-function getCategoryIcon(category) {
-  const icons = {
-    Food: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3z"></path></svg>',
-    Transport: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M5 17h-2v-6l2-5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"></path></svg>',
-    Shopping: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>',
-    Utilities: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>',
-    Entertainment: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>',
-    Health: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
-    Education: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
-    Other: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>'
+  document.getElementById('add-manual-expense-btn').onclick = () => {
+    showManualExpensePopup();
   };
-  return icons[category] || icons.Other;
+  
+  document.getElementById('configure-ai-btn').onclick = () => {
+    showGeminiKeyPopup(true);
+  };
+  
+  document.getElementById('clear-data-btn').onclick = () => {
+    if (confirm('Are you sure you want to clear all expense data? This action cannot be undone.')) {
+      clearExpenses();
+      showNotification('All data cleared successfully!', 'success');
+    }
+  };
 }
 
-async function renderExpenses() {
-  const allExpenses = await getAllExpenses();
-  const list = document.getElementById('expenses-list');
+function showManualExpensePopup() {
+  if (document.getElementById('manual-expense-popup')) return;
   
-  if (!list) return;
+  const popup = document.createElement('div');
+  popup.id = 'manual-expense-popup';
+  popup.className = 'popup-overlay';
   
-  // Get active filters
-  const activeFilter = document.querySelector('.btn-filter.active')?.dataset.filter || 'today';
-  const activeView = document.querySelector('#view-dropdown-btn')?.dataset.view || 'list';
+  const today = getLocalDateString();
   
-  // Filter expenses based on active filter
-  let filteredExpenses = allExpenses;
-  
-  if (activeFilter === 'today') {
-    const today = getLocalDateString();
-    filteredExpenses = allExpenses.filter(e => e.date === today);
-  } else if (activeFilter === 'this-month') {
-    const today = new Date();
-    const thisMonth = today.getMonth();
-    const thisYear = today.getFullYear();
-    filteredExpenses = allExpenses.filter(e => {
-      const expenseDate = new Date(e.date);
-      return expenseDate.getMonth() === thisMonth && expenseDate.getFullYear() === thisYear;
-    });
-  }
-  
-  // Get checked categories
-  const checkedCategories = Array.from(document.querySelectorAll('.category-filter-checkbox:checked')).map(cb => cb.value);
-  if (checkedCategories.length > 0) {
-    filteredExpenses = filteredExpenses.filter(e => checkedCategories.includes(e.category));
-  }
-
-  if (!filteredExpenses.length) {
-    list.innerHTML = '<div class="card"><p>No expenses found for the selected filters.</p></div>';
-    return;
-  }
-
-  // Sort by date descending
-  filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  if (activeView === 'list') {
-    list.innerHTML = filteredExpenses.map(e => `
-      <div class="expense-item">
-        <div class="expense-item-main">
-          <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
-          <div class="expense-details">
-            <span class="expense-description">${capitalizeWords(e.description)}</span>
-            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
-          </div>
-        </div>
-        <div class="expense-actions">
-          <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
-          <div class="expense-buttons">
-            <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-            <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
-          </div>
-        </div>
+  popup.innerHTML = `
+    <div class="popup-content">
+      <div class="popup-header">
+        <h2>Add Manual Expense</h2>
+        <button id="close-manual-popup" class="close-btn">&times;</button>
       </div>
-    `).join('');
-  } else if (activeView === 'category') {
-    const expensesByCategory = groupBy(filteredExpenses, e => e.category);
-    let html = '';
-    const sortedCategories = Object.keys(expensesByCategory).sort();
-
-    for (const category of sortedCategories) {
-        html += `
-            <div class="category-group card">
-                <h3 class="category-title">${capitalizeWords(category)}</h3>
-                <div class="category-expense-list">
-                ${expensesByCategory[category].map(e => `
-                    <div class="expense-item">
-                      <div class="expense-item-main">
-                         <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
-                         <div class="expense-details">
-                           <span class="expense-description">${capitalizeWords(e.description)}</span>
-                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
-                         </div>
-                       </div>
-                       <div class="expense-actions">
-                         <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
-                         <div class="expense-buttons">
-                           <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-                           <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
-                         </div>
-                       </div>
-                    </div>
-                `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    list.innerHTML = html || '<div class="card"><p>No expenses found for the selected filter.</p></div>';
-  }
-}
-
-// Missing Google Drive functions
-async function renderGoogleAccountStatus() {
-  const statusDiv = document.getElementById('google-account-status')
-  if (!statusDiv) return;
-  statusDiv.innerHTML = ''
-  try {
-    const { isSignedIn } = await import('./googleDrive.js')
-    const signedIn = await isSignedIn()
-    if (signedIn) {
-      const { getGoogleUserProfile, signOutGoogle } = await import('./googleDrive.js')
-      const profile = await getGoogleUserProfile()
-      const profileImageHtml = profile.imageUrl 
-        ? `<img src="${profile.imageUrl}" alt="Profile" onerror="this.style.display='none'">`
-        : `<div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--secondary-color); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--background-color);">${(profile.name || 'U').charAt(0).toUpperCase()}</div>`;
-      
-      statusDiv.innerHTML = `
-        <div class="profile-info">
-            ${profileImageHtml}
+      <form id="manual-expense-form">
+        <div class="form-group">
+          <label for="manual-description">Description</label>
+          <input type="text" id="manual-description" placeholder="Enter expense description" required>
         </div>
-        <button id="google-signout-btn" class="btn-secondary">Sign out</button>
-      `
-      document.getElementById('google-signout-btn').onclick = async () => {
-        const signedOut = await signOutGoogle()
-        if (signedOut) {
-          renderGoogleAccountStatus(); // Re-render to show signed-out state
-        }
-      }
-    } else {
-      statusDiv.innerHTML = '<button id="google-signin-btn">Sign in with Google</button>'
-      document.getElementById('google-signin-btn').onclick = async () => {
-        await signInGoogle();
-        renderGoogleAccountStatus();
-      }
-    }
-  } catch (e) {
-    statusDiv.innerHTML = '<span style="color:red;">Account status error</span>'
-    console.error(e);
-  }
-}
-
-async function triggerSync(interactive = false) {
-    console.log(`triggerSync called, interactive: ${interactive}`);
-    const driveMsg = document.getElementById('drive-msg');
-    if(interactive && driveMsg) {
-        driveMsg.textContent = 'Syncing to Google Drive...';
-    }
-
+        <div class="form-group">
+          <label for="manual-amount">Amount (₹)</label>
+          <input type="number" id="manual-amount" step="0.01" placeholder="0.00" required>
+        </div>
+        <div class="form-group">
+          <label for="manual-category">Category</label>
+          <select id="manual-category" required>
+            <option value="">Select category</option>
+            <option value="Food">Food</option>
+            <option value="Transport">Transport</option>
+            <option value="Shopping">Shopping</option>
+            <option value="Utilities">Utilities</option>
+            <option value="Entertainment">Entertainment</option>
+            <option value="Health">Health</option>
+            <option value="Education">Education</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="manual-payment-mode">Payment Mode</label>
+          <select id="manual-payment-mode" required>
+            <option value="UPI">UPI</option>
+            <option value="Credit Card">Credit Card</option>
+            <option value="Debit Card">Debit Card</option>
+            <option value="Cash">Cash</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="manual-date">Date</label>
+          <input type="date" id="manual-date" value="${today}" required>
+        </div>
+        <div class="popup-buttons">
+          <button type="button" id="cancel-manual-expense" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Add Expense</button>
+        </div>
+      </form>
+    </div>
+  `;
+  
+  document.body.appendChild(popup);
+  
+  // Event listeners
+  document.getElementById('close-manual-popup').onclick = () => {
+    document.body.removeChild(popup);
+  };
+  
+  document.getElementById('cancel-manual-expense').onclick = () => {
+    document.body.removeChild(popup);
+  };
+  
+  document.getElementById('manual-expense-form').onsubmit = async (e) => {
+    e.preventDefault();
+    
+    const expense = {
+      description: document.getElementById('manual-description').value,
+      amount: parseFloat(document.getElementById('manual-amount').value),
+      category: document.getElementById('manual-category').value,
+      paymentMode: document.getElementById('manual-payment-mode').value,
+      date: document.getElementById('manual-date').value,
+      created_at: new Date().toISOString()
+    };
+    
     try {
-        let signedIn = await isSignedIn();
-        if (!signedIn && interactive) {
-            await signInGoogle();
-            renderGoogleAccountStatus();
-            signedIn = await isSignedIn();
-        }
-
-        if (!signedIn) {
-            if(interactive) {
-                showNotification('Google Sign-In is required to sync.', 'error');
-            } else {
-                console.log("Skipping auto-sync, user not signed in.");
-            }
-            if(driveMsg) driveMsg.textContent = '';
-            return;
-        }
-
-        const expenses = await getAllExpenses();
-        if (!expenses || expenses.length === 0) {
-            if(interactive && driveMsg) showNotification('No expenses to sync.', 'info');
-            if(driveMsg) driveMsg.textContent = '';
-            return;
-        }
-
-        const filename = 'expenses-backup.json';
-        const fileContent = JSON.stringify(expenses, null, 2);
-
-        const result = await uploadToDrive(filename, fileContent);
-        if (result && result.id) {
-            if(interactive) {
-              showNotification('Backup uploaded to Google Drive!', 'success');
-            } else {
-              console.log("Automatic sync to Google Drive successful.");
-              showNotification('Auto-synced to Google Drive.', 'info');
-            }
-        } else {
-            const errorDetails = result ? JSON.stringify(result) : 'Unknown error';
-            if(interactive) {
-              showNotification('Google Drive sync failed: ' + errorDetails, 'error');
-            } else {
-              console.error("Automatic sync to Google Drive failed:", errorDetails);
-            }
-        }
-
-    } catch (e) {
-        console.error('Google Drive sync failed:', e);
-        if(interactive && driveMsg) showNotification(`Google Drive sync failed: ${e.message}`, 'error');
-    } finally {
-        if(driveMsg) driveMsg.textContent = '';
-        if(interactive) renderGoogleAccountStatus();
+      await addExpense(expense);
+      document.body.removeChild(popup);
+      showNotification('Expense added successfully!', 'success');
+      
+      // Refresh the current view
+      if (document.querySelector('#expenses-list')) {
+        renderExpenses();
+      }
+      if (document.querySelector('#recent-expenses')) {
+        renderRecentExpenses();
+      }
+      
+      // Trigger sync
+      triggerSync(false);
+    } catch (error) {
+      showNotification('Failed to add expense', 'error');
+      console.error('Error adding expense:', error);
     }
+  };
 }
-
-// Initialize the app
-init();

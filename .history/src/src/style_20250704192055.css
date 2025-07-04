@@ -256,13 +256,7 @@ button.btn-danger {
 #expenses-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-#recent-expenses-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .expense-item {
@@ -408,13 +402,7 @@ button.btn-danger {
 #expenses-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-}
-
-#recent-expenses-list {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .expense-item {

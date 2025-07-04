@@ -342,15 +342,7 @@ function showExpenseConfirmationPopup(expense, onConfirm) {
       </div>
       <p><strong>Category:</strong> ${expense.category}</p>
       <p><strong>Date:</strong> ${formattedDate}</p>
-      <div class="form-group" style="margin: 1rem 0;">
-        <label for="confirm-payment-mode"><strong>Payment Mode:</strong></label>
-        <select id="confirm-payment-mode" style="margin-top: 0.5rem;">
-          <option value="UPI" ${expense.paymentMode === 'UPI' ? 'selected' : ''}>UPI</option>
-          <option value="Credit Card" ${expense.paymentMode === 'Credit Card' ? 'selected' : ''}>Credit Card</option>
-          <option value="Debit Card" ${expense.paymentMode === 'Debit Card' ? 'selected' : ''}>Debit Card</option>
-          <option value="Cash" ${expense.paymentMode === 'Cash' ? 'selected' : ''}>Cash</option>
-        </select>
-      </div>
+      <p><strong>Payment Mode:</strong> ${expense.paymentMode}</p>
       <div class="popup-buttons">
         <button id="cancel-add-expense" class="btn-secondary">Cancel</button>
         <button id="confirm-add-expense">Confirm</button>
@@ -361,12 +353,8 @@ function showExpenseConfirmationPopup(expense, onConfirm) {
   document.body.appendChild(popup);
 
   document.getElementById('confirm-add-expense').onclick = () => {
-    // Get the updated payment mode from the dropdown
-    const updatedPaymentMode = document.getElementById('confirm-payment-mode').value;
-    const updatedExpense = { ...expense, paymentMode: updatedPaymentMode };
-    
     if(document.body.contains(popup)) document.body.removeChild(popup);
-    onConfirm(updatedExpense);
+    onConfirm();
   };
 
   document.getElementById('cancel-add-expense').onclick = () => {
@@ -450,13 +438,13 @@ function renderForm() {
       submitBtn.disabled = false
       submitBtn.innerHTML = originalText
       
-      showExpenseConfirmationPopup(expense, async (updatedExpense) => {
-        await addExpense(updatedExpense)
+      showExpenseConfirmationPopup(expense, async () => {
+        await addExpense(expense)
         e.target.reset()
         document.getElementById('error-msg').textContent = ''
+        // Automatically sync after adding an expense
+        triggerSync(false);
         showNotification('Expense added successfully!', 'success');
-        // Automatically sync after adding an expense (with slight delay so notification is visible)
-        setTimeout(() => triggerSync(false), 1000);
         // If user is on expenses page, refresh it
         if (document.querySelector('#expenses-list')) {
             renderExpenses();
@@ -527,16 +515,10 @@ async function renderRecentExpenses() {
             <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
             <div class="expense-details">
               <span class="expense-description">${capitalizeWords(e.description)}</span>
-              <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
+              <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
             </div>
           </div>
-          <div class="expense-actions">
-            <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
-            <div class="expense-buttons">
-              <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-              <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
-            </div>
-          </div>
+          <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
         </div>
       `).join('');
 }
@@ -763,613 +745,6 @@ async function renderExpensesPage() {
   await renderExpenses();
 }
 
-// Edit and Delete Functions
-window.editExpense = async function(id) {
-  const expense = await getExpenseById(id);
-  if (!expense) {
-    showNotification('Expense not found', 'error');
-    return;
-  }
-  
-  showEditExpensePopup(expense);
-};
-
-window.deleteExpenseConfirm = async function(id) {
-  const expense = await getExpenseById(id);
-  if (!expense) {
-    showNotification('Expense not found', 'error');
-    return;
-  }
-  
-  showDeleteConfirmationPopup(expense, id);
-};
-
-function showEditExpensePopup(expense) {
-  if (document.getElementById('edit-expense-popup')) return;
-  
-  const popup = document.createElement('div');
-  popup.id = 'edit-expense-popup';
-  popup.className = 'popup-overlay';
-  
-  const formattedDate = expense.date.split('T')[0]; // Extract YYYY-MM-DD
-  
-  popup.innerHTML = `
-    <div class="popup-content">
-      <div class="popup-header">
-        <h2>Edit Expense</h2>
-        <button id="close-edit-popup" class="close-btn">&times;</button>
-      </div>
-      <form id="edit-expense-form">
-        <div class="form-group">
-          <label for="edit-description">Description</label>
-          <input type="text" id="edit-description" value="${expense.description}" required>
-        </div>
-        <div class="form-group">
-          <label for="edit-amount">Amount (₹)</label>
-          <input type="number" id="edit-amount" step="0.01" value="${expense.amount}" required>
-        </div>
-        <div class="form-group">
-          <label for="edit-category">Category</label>
-          <select id="edit-category" required>
-            <option value="Food" ${expense.category === 'Food' ? 'selected' : ''}>Food</option>
-            <option value="Transport" ${expense.category === 'Transport' ? 'selected' : ''}>Transport</option>
-            <option value="Shopping" ${expense.category === 'Shopping' ? 'selected' : ''}>Shopping</option>
-            <option value="Utilities" ${expense.category === 'Utilities' ? 'selected' : ''}>Utilities</option>
-            <option value="Entertainment" ${expense.category === 'Entertainment' ? 'selected' : ''}>Entertainment</option>
-            <option value="Health" ${expense.category === 'Health' ? 'selected' : ''}>Health</option>
-            <option value="Education" ${expense.category === 'Education' ? 'selected' : ''}>Education</option>
-            <option value="Other" ${expense.category === 'Other' ? 'selected' : ''}>Other</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="edit-payment-mode">Payment Mode</label>
-          <select id="edit-payment-mode" required>
-            <option value="UPI" ${(expense.paymentMode || 'UPI') === 'UPI' ? 'selected' : ''}>UPI</option>
-            <option value="Credit Card" ${expense.paymentMode === 'Credit Card' ? 'selected' : ''}>Credit Card</option>
-            <option value="Debit Card" ${expense.paymentMode === 'Debit Card' ? 'selected' : ''}>Debit Card</option>
-            <option value="Cash" ${expense.paymentMode === 'Cash' ? 'selected' : ''}>Cash</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label for="edit-date">Date</label>
-          <input type="date" id="edit-date" value="${formattedDate}" required>
-        </div>
-        <div class="popup-buttons">
-          <button type="button" id="cancel-edit-expense" class="btn-secondary">Cancel</button>
-          <button type="submit" class="btn-primary">Save Changes</button>
-        </div>
-      </form>
-    </div>
-  `;
-  
-  document.body.appendChild(popup);
-  
-  // Event listeners
-  document.getElementById('close-edit-popup').onclick = () => {
-    document.body.removeChild(popup);
-  };
-  
-  document.getElementById('cancel-edit-expense').onclick = () => {
-    document.body.removeChild(popup);
-  };
-  
-  document.getElementById('edit-expense-form').onsubmit = async (e) => {
-    e.preventDefault();
-    
-    const updatedExpense = {
-      ...expense,
-      description: document.getElementById('edit-description').value,
-      amount: parseFloat(document.getElementById('edit-amount').value),
-      category: document.getElementById('edit-category').value,
-      paymentMode: document.getElementById('edit-payment-mode').value,
-      date: document.getElementById('edit-date').value,
-      updated_at: new Date().toISOString()
-    };
-    
-    try {
-      await updateExpense(expense.id, updatedExpense);
-      document.body.removeChild(popup);
-      showNotification('Expense updated successfully!', 'success');
-      
-      // Refresh the current view
-      if (document.querySelector('#expenses-list')) {
-        renderExpenses();
-      }
-      if (document.querySelector('#recent-expenses-list')) {
-        renderRecentExpenses();
-      }
-      
-      // Trigger sync (with slight delay so notification is visible)
-      setTimeout(() => triggerSync(false), 1000);
-    } catch (error) {
-      showNotification('Failed to update expense', 'error');
-      console.error('Error updating expense:', error);
-    }
-  };
-}
-
-function showDeleteConfirmationPopup(expense, id) {
-  if (document.getElementById('delete-expense-popup')) return;
-  
-  const popup = document.createElement('div');
-  popup.id = 'delete-expense-popup';
-  popup.className = 'popup-overlay';
-  
-  popup.innerHTML = `
-    <div class="popup-content">
-      <div class="popup-header">
-        <h2>Delete Expense</h2>
-      </div>
-      <div class="popup-body">
-        <p>Are you sure you want to delete this expense?</p>
-        <div class="expense-preview">
-          <div class="expense-category-icon">${getCategoryIcon(expense.category)}</div>
-          <div>
-            <strong>${capitalizeWords(expense.description)}</strong>
-            <div>₹${expense.amount.toFixed(2)} • ${expense.paymentMode || 'UPI'}</div>
-            <div class="expense-date">${new Date(expense.date).toLocaleDateString()}</div>
-          </div>
-        </div>
-        <p class="warning-text">This action cannot be undone.</p>
-      </div>
-      <div class="popup-buttons">
-        <button id="cancel-delete-expense" class="btn-secondary">Cancel</button>
-        <button id="confirm-delete-expense" class="btn-danger">Delete</button>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(popup);
-  
-  document.getElementById('cancel-delete-expense').onclick = () => {
-    document.body.removeChild(popup);
-  };
-  
-  document.getElementById('confirm-delete-expense').onclick = async () => {
-    try {
-      await deleteExpense(id);
-      document.body.removeChild(popup);
-      showNotification('Expense deleted successfully!', 'success');
-      
-      // Refresh the current view
-      if (document.querySelector('#expenses-list')) {
-        renderExpenses();
-      }
-      if (document.querySelector('#recent-expenses-list')) {
-        renderRecentExpenses();
-      }
-      
-      // Trigger sync (with slight delay so notification is visible)
-      setTimeout(() => triggerSync(false), 1000);
-    } catch (error) {
-      showNotification('Failed to delete expense', 'error');
-      console.error('Error deleting expense:', error);
-    }
-  };
-}
-
-// New functions for manual expense entry and missing pages
-function renderAnalyzePage() {
-  document.getElementById('page-content').innerHTML = `
-    <h2>🔍 Analyze Your Expenses</h2>
-    <form id="analyze-form" class="analyze-form">
-      <input type="text" id="analyze-query" placeholder="Ask a question (e.g., How much did I spend on tea yesterday?)" required />
-      <button type="submit">Analyze</button>
-    </form>
-    <div id="analyze-results" class="analyze-results-container"></div>
-  `
-  document.getElementById('analyze-form').onsubmit = async (e) => {
-    e.preventDefault()
-    const query = document.getElementById('analyze-query').value
-    const apiKey = getGeminiKey()
-    if (!apiKey) {
-      document.getElementById('analyze-results').innerHTML = '<span style="color:red;">Gemini API key is required.</span>'
-      showGeminiKeyPopup(true)
-      return
-    }
-    document.getElementById('analyze-results').textContent = 'Analyzing...'
-    try {
-      const { sql, expenses } = await analyzeExpensesWithGemini(query, apiKey)
-      console.log('SQL sent to alasql:', sql)
-      console.log('Expenses data for alasql:', expenses)
-      const results = runSQLOnExpenses(sql, expenses)
-      let displayResult = results
-      if (Array.isArray(results)) {
-        if (results.length === 0) {
-          displayResult = 'No results found.'
-        } else if (results.length === 1) {
-          const val = results[0]
-          if (val === undefined || val === null) {
-            displayResult = 0
-          } else if (typeof val === 'object' && val !== null) {
-            const firstKey = Object.keys(val)[0]
-            const aggVal = val[firstKey]
-            displayResult = (aggVal === undefined || aggVal === null) ? 0 : aggVal
-          } else {
-            displayResult = val
-          }
-        }
-      }
-      let html = ''
-      if (Array.isArray(displayResult)) {
-        if (displayResult.length === 0) {
-          html = '<div class="analyze-no-results">No results found.</div>'
-        } else if (typeof displayResult[0] === 'object' && displayResult[0] !== null) {
-          const keys = Object.keys(displayResult[0])
-          html = `<table class="analyze-table"><thead><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr></thead><tbody>`
-          html += displayResult.map(row => `<tr>${keys.map(k => `<td>${row[k] ?? ''}</td>`).join('')}</tr>`).join('')
-          html += '</tbody></table>'
-        } else {
-          html = `<div class="analyze-value">${displayResult}</div>`
-        }
-      } else {
-        html = `<div class="analyze-value">${displayResult}</div>`
-      }
-      document.getElementById('analyze-results').innerHTML = `
-        <div class="analyze-result-block">
-          ${html}
-          <div class='sql-query'>SQL: <code>${sql}</code></div>
-        </div>
-      `
-    } catch (err) {
-      document.getElementById('analyze-results').innerHTML = `<span style='color:red;'>${err.message}</span>`
-    }
-  }
-}
-
-async function renderSummaryPage() {
-  document.getElementById('page-content').innerHTML = `
-    <h2>Spending Summary</h2>
-    <div class="tabs">
-      <button class="tab-btn active" id="tab-daily">Daily</button>
-      <button class="tab-btn" id="tab-monthly">This Month</button>
-      <button class="tab-btn" id="tab-month">Month</button>
-      <button class="tab-btn" id="tab-yearly">Yearly</button>
-    </div>
-    <div id="tab-content" class="tab-content"></div>
-  `
-  document.getElementById('tab-daily').onclick = (e) => { 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    renderSummaryTab('daily');
-  }
-  document.getElementById('tab-monthly').onclick = (e) => { 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    renderSummaryTab('monthly');
-  }
-  document.getElementById('tab-month').onclick = (e) => { 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    renderSummaryTab('month');
-  }
-  document.getElementById('tab-yearly').onclick = (e) => { 
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    renderSummaryTab('yearly');
-  }
-  renderSummaryTab('daily');
-}
-
-async function renderSummaryTab(type) {
-  const content = document.getElementById('tab-content');
-  content.innerHTML = `<div class="card"><p>Summary feature coming soon!</p></div>`;
-}
-
-function renderSettingsPage() {
-    document.getElementById('page-content').innerHTML = `
-        <h2>Settings</h2>
-        <div class="settings-container">
-            <div class="setting-item card">
-                <h3>Gemini API Key</h3>
-                <p>Your API key is stored securely in your browser's local storage.</p>
-                <div class="key-input-container">
-                    <input type="password" id="gemini-key-input" value="${getGeminiKey()}">
-                    <button id="toggle-key-visibility" class="toggle-visibility-btn" title="Show API Key">${ICONS.eyeOpen}</button>
-                </div>
-                <div class="gemini-key-buttons">
-                    <button id="save-gemini-key">Save Key</button>
-                    <button id="clear-gemini-key" class="btn-secondary">Clear Key</button>
-                </div>
-            </div>
-            <div class="setting-item card">
-                <h3>Google Drive Sync</h3>
-                <p>Backup and restore your expenses with Google Drive.</p>
-                <div class="drive-buttons">
-                    <button id="sync-drive">Sync to Drive</button>
-                    <button id="load-drive">Load from Drive</button>
-                </div>
-                <div id="drive-msg" class="drive-message"></div>
-            </div>
-            <div class="setting-item card">
-                <h3>📚 Help & Setup Guide</h3>
-                <p>Get help with setup, learn about features, and view detailed instructions.</p>
-                <div class="help-buttons">
-                    <button id="setup-gemini-help">🔑 Gemini API Setup</button>
-                    <button id="detailed-help">📖 Full Guide & Tips</button>
-                </div>
-            </div>
-             <div class="setting-item card">
-                <h3>Danger Zone</h3>
-                <p>Clear all locally stored expense data.</p>
-                <button id="clear-data-btn" class="btn-danger">Clear All Expenses</button>
-            </div>
-        </div>
-    `;
-
-    // Initialize key input
-    const keyInput = document.getElementById('gemini-key-input');
-    keyInput.value = getGeminiKey();
-
-    document.getElementById('save-gemini-key').onclick = () => {
-        const key = document.getElementById('gemini-key-input').value;
-        setGeminiKey(key);
-        showNotification('Gemini API Key saved!', 'success');
-    };
-
-    document.getElementById('clear-gemini-key').onclick = () => {
-        if (confirm('Are you sure you want to clear your Gemini API key? You will lose access to AI features until you add it again.')) {
-            setGeminiKey('');
-            document.getElementById('gemini-key-input').value = '';
-            showNotification('Gemini API Key cleared!', 'info');
-        }
-    };
-
-    document.getElementById('toggle-key-visibility').onclick = () => {
-        const keyInput = document.getElementById('gemini-key-input');
-        const toggleBtn = document.getElementById('toggle-key-visibility');
-        
-        if (keyInput.type === 'password') {
-            keyInput.type = 'text';
-            toggleBtn.innerHTML = ICONS.eyeClosed;
-            toggleBtn.title = 'Hide API Key';
-        } else {
-            keyInput.type = 'password';
-            toggleBtn.innerHTML = ICONS.eyeOpen;
-            toggleBtn.title = 'Show API Key';
-        }
-    };
-
-    document.getElementById('setup-gemini-help').onclick = () => {
-        showGeminiKeyPopup(false);
-    };
-
-    document.getElementById('detailed-help').onclick = () => {
-        showDetailedInstructions();
-    };
-
-    document.getElementById('sync-drive').onclick = () => triggerSync(true);
-    document.getElementById('load-drive').onclick = async () => {
-        const driveMsg = document.getElementById('drive-msg');
-        driveMsg.textContent = '';
-
-        try {
-          let signedIn = await isSignedIn();
-          if (!signedIn) {
-            showNotification('Please sign in to Google to load from Drive.', 'info');
-            await signInGoogle();
-            renderGoogleAccountStatus();
-          }
-          signedIn = await isSignedIn();
-          if (!signedIn) {
-            showNotification('Google Sign-In is required to load from Drive.', 'error');
-            return;
-          }
-
-          showNotification('Opening Google Drive file picker...', 'info');
-          const fileContent = await pickAndDownloadFromDrive();
-
-          if (fileContent === null) {
-            showNotification('File selection cancelled.', 'info');
-            return;
-          }
-
-          showNotification('Restoring expenses from backup...', 'info');
-
-          const expenses = JSON.parse(fileContent);
-          if (!Array.isArray(expenses)) {
-            throw new Error("Invalid backup file format.");
-          }
-
-          await clearExpenses();
-          for (const expense of expenses) {
-            const { id, ...expenseToSave } = expense;
-            await addExpense(expenseToSave);
-          }
-          
-          showNotification('Expenses successfully restored from Google Drive!', 'success');
-
-        } catch (e) {
-          console.error('Google Drive load failed:', e);
-          showNotification(`Google Drive load failed: ${e.message}`, 'error');
-        }
-    };
-
-    document.getElementById('clear-data-btn').onclick = async () => {
-        if (confirm('Are you sure you want to delete all your local expense data? This cannot be undone.')) {
-            await clearExpenses();
-            showNotification('All local expenses have been cleared.', 'success');
-        }
-    };
-}
-
-// Initialize app
-async function init() {
-  await checkVersion();
-  renderNav();
-  renderForm();
-  renderGoogleAccountStatus();
-  renderSmartInsight();
-  renderRecentExpenses();
-  trySilentSignIn();
-  
-  // Register service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js');
-  }
-}
-
-// Missing utility functions
-function groupBy(array, keyFn) {
-  return array.reduce((result, item) => {
-    const key = keyFn(item);
-    if (!result[key]) {
-      result[key] = [];
-    }
-    result[key].push(item);
-    return result;
-  }, {});
-}
-
-function getCategoryIcon(category) {
-  const icons = {
-    Food: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path><path d="M7 2v20"></path><path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3z"></path></svg>',
-    Transport: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M17 17m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"></path><path d="M5 17h-2v-6l2-5h9l4 5h1a2 2 0 0 1 2 2v4h-2m-4 0h-6m-6 -6h15m-6 0v-5"></path></svg>',
-    Shopping: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>',
-    Utilities: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>',
-    Entertainment: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"></path><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>',
-    Health: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
-    Education: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>',
-    Other: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27,6.96 12,12.01 20.73,6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>'
-  };
-  return icons[category] || icons.Other;
-}
-
-async function renderExpenses() {
-  const allExpenses = await getAllExpenses();
-  const list = document.getElementById('expenses-list');
-  
-  if (!list) return;
-  
-  // Get active filters
-  const activeFilter = document.querySelector('.btn-filter.active')?.dataset.filter || 'today';
-  const activeView = document.querySelector('#view-dropdown-btn')?.dataset.view || 'list';
-  
-  // Filter expenses based on active filter
-  let filteredExpenses = allExpenses;
-  
-  if (activeFilter === 'today') {
-    const today = getLocalDateString();
-    filteredExpenses = allExpenses.filter(e => e.date === today);
-  } else if (activeFilter === 'this-month') {
-    const today = new Date();
-    const thisMonth = today.getMonth();
-    const thisYear = today.getFullYear();
-    filteredExpenses = allExpenses.filter(e => {
-      const expenseDate = new Date(e.date);
-      return expenseDate.getMonth() === thisMonth && expenseDate.getFullYear() === thisYear;
-    });
-  }
-  
-  // Get checked categories
-  const checkedCategories = Array.from(document.querySelectorAll('.category-filter-checkbox:checked')).map(cb => cb.value);
-  if (checkedCategories.length > 0) {
-    filteredExpenses = filteredExpenses.filter(e => checkedCategories.includes(e.category));
-  }
-
-  if (!filteredExpenses.length) {
-    list.innerHTML = '<div class="card"><p>No expenses found for the selected filters.</p></div>';
-    return;
-  }
-
-  // Sort by date descending
-  filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  if (activeView === 'list') {
-    list.innerHTML = filteredExpenses.map(e => `
-      <div class="expense-item">
-        <div class="expense-item-main">
-          <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
-          <div class="expense-details">
-            <span class="expense-description">${capitalizeWords(e.description)}</span>
-            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
-          </div>
-        </div>
-        <div class="expense-actions">
-          <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
-          <div class="expense-buttons">
-            <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-            <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  } else if (activeView === 'category') {
-    const expensesByCategory = groupBy(filteredExpenses, e => e.category);
-    let html = '';
-    const sortedCategories = Object.keys(expensesByCategory).sort();
-
-    for (const category of sortedCategories) {
-        html += `
-            <div class="category-group card">
-                <h3 class="category-title">${capitalizeWords(category)}</h3>
-                <div class="category-expense-list">
-                ${expensesByCategory[category].map(e => `
-                    <div class="expense-item">
-                      <div class="expense-item-main">
-                         <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
-                         <div class="expense-details">
-                           <span class="expense-description">${capitalizeWords(e.description)}</span>
-                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })} • ${e.paymentMode || 'UPI'}</span>
-                         </div>
-                       </div>
-                       <div class="expense-actions">
-                         <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
-                         <div class="expense-buttons">
-                           <button class="btn-edit" onclick="editExpense(${e.id})">✏️</button>
-                           <button class="btn-delete" onclick="deleteExpenseConfirm(${e.id})">🗑️</button>
-                         </div>
-                       </div>
-                    </div>
-                `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    list.innerHTML = html || '<div class="card"><p>No expenses found for the selected filter.</p></div>';
-  }
-}
-
-// Missing Google Drive functions
-async function renderGoogleAccountStatus() {
-  const statusDiv = document.getElementById('google-account-status')
-  if (!statusDiv) return;
-  statusDiv.innerHTML = ''
-  try {
-    const { isSignedIn } = await import('./googleDrive.js')
-    const signedIn = await isSignedIn()
-    if (signedIn) {
-      const { getGoogleUserProfile, signOutGoogle } = await import('./googleDrive.js')
-      const profile = await getGoogleUserProfile()
-      const profileImageHtml = profile.imageUrl 
-        ? `<img src="${profile.imageUrl}" alt="Profile" onerror="this.style.display='none'">`
-        : `<div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--secondary-color); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--background-color);">${(profile.name || 'U').charAt(0).toUpperCase()}</div>`;
-      
-      statusDiv.innerHTML = `
-        <div class="profile-info">
-            ${profileImageHtml}
-        </div>
-        <button id="google-signout-btn" class="btn-secondary">Sign out</button>
-      `
-      document.getElementById('google-signout-btn').onclick = async () => {
-        const signedOut = await signOutGoogle()
-        if (signedOut) {
-          renderGoogleAccountStatus(); // Re-render to show signed-out state
-        }
-      }
-    } else {
-      statusDiv.innerHTML = '<button id="google-signin-btn">Sign in with Google</button>'
-      document.getElementById('google-signin-btn').onclick = async () => {
-        await signInGoogle();
-        renderGoogleAccountStatus();
-      }
-    }
-  } catch (e) {
-    statusDiv.innerHTML = '<span style="color:red;">Account status error</span>'
-    console.error(e);
-  }
-}
-
 async function triggerSync(interactive = false) {
     console.log(`triggerSync called, interactive: ${interactive}`);
     const driveMsg = document.getElementById('drive-msg');
@@ -1431,5 +806,978 @@ async function triggerSync(interactive = false) {
     }
 }
 
-// Initialize the app
-init();
+function renderAnalyzePage() {
+  document.getElementById('page-content').innerHTML = `
+    <h2>🔍 Analyze Your Expenses</h2>
+    <form id="analyze-form" class="analyze-form">
+      <input type="text" id="analyze-query" placeholder="Ask a question (e.g., How much did I spend on tea yesterday?)" required />
+      <button type="submit">Analyze</button>
+    </form>
+    <div id="analyze-results" class="analyze-results-container"></div>
+  `
+  document.getElementById('analyze-form').onsubmit = async (e) => {
+    e.preventDefault()
+    const query = document.getElementById('analyze-query').value
+    const apiKey = getGeminiKey()
+    if (!apiKey) {
+      document.getElementById('analyze-results').innerHTML = '<span style="color:red;">Gemini API key is required.</span>'
+      showGeminiKeyPopup(true)
+      return
+    }
+    document.getElementById('analyze-results').textContent = 'Analyzing...'
+    try {
+      const { sql, expenses } = await analyzeExpensesWithGemini(query, apiKey)
+      // Extra debug: log the SQL and the expenses data
+      console.log('SQL sent to alasql:', sql)
+      console.log('Expenses data for alasql:', expenses)
+      const results = runSQLOnExpenses(sql, expenses)
+      let displayResult = results
+      if (Array.isArray(results)) {
+        if (results.length === 0) {
+          displayResult = 'No results found.'
+        } else if (results.length === 1) {
+          const val = results[0]
+          if (val === undefined || val === null) {
+            displayResult = 0
+          } else if (typeof val === 'object' && val !== null) {
+            // For aggregate queries like SUM(amount)
+            const firstKey = Object.keys(val)[0]
+            const aggVal = val[firstKey]
+            displayResult = (aggVal === undefined || aggVal === null) ? 0 : aggVal
+          } else {
+            displayResult = val
+          }
+        }
+      }
+      // Dynamic styling based on query response
+      let html = ''
+      if (Array.isArray(displayResult)) {
+        if (displayResult.length === 0) {
+          html = '<div class="analyze-no-results">No results found.</div>'
+        } else if (typeof displayResult[0] === 'object' && displayResult[0] !== null) {
+          // Render as table for array of objects
+          const keys = Object.keys(displayResult[0])
+          html = `<table class="analyze-table"><thead><tr>${keys.map(k => `<th>${k}</th>`).join('')}</tr></thead><tbody>`
+          html += displayResult.map(row => `<tr>${keys.map(k => `<td>${row[k] ?? ''}</td>`).join('')}</tr>`).join('')
+          html += '</tbody></table>'
+        } else {
+          html = `<div class="analyze-value">${displayResult}</div>`
+        }
+      } else {
+        html = `<div class="analyze-value">${displayResult}</div>`
+      }
+      document.getElementById('analyze-results').innerHTML = `
+        <div class="analyze-result-block">
+          ${html}
+          <div class='sql-query'>SQL: <code>${sql}</code></div>
+        </div>
+      `
+    } catch (err) {
+      document.getElementById('analyze-results').innerHTML = `<span style='color:red;'>${err.message}</span>`
+    }
+  }
+}
+
+async function renderSummaryPage() {
+  document.getElementById('page-content').innerHTML = `
+    <h2>Spending Summary</h2>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-daily">Daily</button>
+      <button class="tab-btn" id="tab-monthly">This Month</button>
+      <button class="tab-btn" id="tab-month">Month</button>
+      <button class="tab-btn" id="tab-yearly">Yearly</button>
+    </div>
+    <div id="tab-content" class="tab-content"></div>
+  `
+  document.getElementById('tab-daily').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('daily');
+  }
+  document.getElementById('tab-monthly').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('monthly');
+  }
+  document.getElementById('tab-month').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('month');
+  }
+  document.getElementById('tab-yearly').onclick = (e) => { 
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    renderSummaryTab('yearly');
+  }
+  renderSummaryTab('daily');
+}
+
+async function renderSummaryTab(type) {
+  const content = document.getElementById('tab-content');
+  content.innerHTML = `
+    <div class="sub-tabs">
+        <button class="sub-tab-btn active" data-view="charts">Charts</button>
+        <button class="sub-tab-btn" data-view="details">Details</button>
+    </div>
+
+    ${type === 'month' ? `
+    <div class="month-picker card">
+        <div class="month-year-inputs">
+            <div class="input-group">
+                <label for="summary-month-select">Month</label>
+                <select id="summary-month-select">
+                    <option value="0">January</option>
+                    <option value="1">February</option>
+                    <option value="2">March</option>
+                    <option value="3">April</option>
+                    <option value="4">May</option>
+                    <option value="5">June</option>
+                    <option value="6">July</option>
+                    <option value="7">August</option>
+                    <option value="8">September</option>
+                    <option value="9">October</option>
+                    <option value="10">November</option>
+                    <option value="11">December</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label for="summary-year-input">Year</label>
+                <input type="number" id="summary-year-input" placeholder="YYYY" />
+            </div>
+        </div>
+        <button id="apply-summary-month">Apply</button>
+    </div>
+    ` : ''}
+
+    <div id="charts-view" class="sub-tab-content active">
+        <div class="summary-section card">
+            <h3 id="bar-chart-title"></h3>
+            <div class="summary-chart-container">
+                <canvas id="summary-bar-chart"></canvas>
+            </div>
+        </div>
+        <div class="summary-section card">
+            <h3 id="pie-chart-title"></h3>
+            <div class="summary-chart-container">
+                <canvas id="summary-pie-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="details-view" class="sub-tab-content">
+        <div class="summary-section card">
+            <h3 id="total-spending-title"></h3>
+            <p id="total-spending-amount" class="summary-total">₹0.00</p>
+        </div>
+        <div class="summary-section card">
+            <h3 id="category-table-title"></h3>
+            <div id="category-summary-table"></div>
+        </div>
+    </div>
+  `;
+
+  // Add event listeners for sub-tabs
+  document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+      btn.onclick = (e) => {
+          document.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+          e.target.classList.add('active');
+          const view = e.target.dataset.view;
+          document.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+          document.getElementById(`${view}-view`).classList.add('active');
+      }
+  });
+
+  // Add event listener for month picker apply button
+  if (type === 'month') {
+    document.getElementById('apply-summary-month').onclick = () => {
+      const month = document.getElementById('summary-month-select').value;
+      const year = document.getElementById('summary-year-input').value;
+      if (year && month !== null) {
+        renderSummaryTab('month');
+      }
+    };
+  }
+
+  const allExpenses = await getAllExpenses();
+  if (allExpenses.length === 0) {
+      content.innerHTML = '<div class="card"><p>No summary to display. Add some expenses first!</p></div>';
+      return;
+  }
+
+  let barChartLabels = [];
+  let barChartData = [];
+  let periodExpenses = []; // Expenses for the pie chart, total, and table
+  const today = new Date();
+  let periodString = '';
+  const currentYear = today.getFullYear();
+
+  if (type === 'daily') {
+    periodString = `Today`;
+    const todayString = getLocalDateString(today);
+    periodExpenses = allExpenses.filter(e => e.date === todayString);
+
+    // Bar chart: show all days of the current month
+    const currentMonth = today.getMonth(); // 0-indexed
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    
+    const monthShortNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    document.getElementById('bar-chart-title').textContent = `Daily Spending for ${monthShortNames[currentMonth]} ${currentYear}`;
+
+    const labels = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+        labels.push(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`);
+    }
+    barChartLabels = labels.map(d => d.split('-')[2]); // Just show day number
+
+    const expensesThisMonth = allExpenses.filter(e => e.date.startsWith(`${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`));
+    const dailyGroups = groupBy(expensesThisMonth, e => e.date);
+
+    barChartData = labels.map(label => {
+        const dayExpenses = dailyGroups[label] || [];
+        return dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'monthly') {
+    periodString = `This Month`;
+    const thisMonthString = today.toISOString().slice(0, 7);
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(thisMonthString));
+
+    // Bar chart: show all months of the current year
+    document.getElementById('bar-chart-title').textContent = `Monthly Spending for ${currentYear}`;
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    barChartLabels = monthNames;
+
+    const labels = [];
+    for (let i = 1; i <= 12; i++) {
+        labels.push(`${currentYear}-${String(i).padStart(2, '0')}`);
+    }
+
+    const expensesThisYear = allExpenses.filter(e => e.date.startsWith(currentYear.toString()));
+    const monthlyGroups = groupBy(expensesThisYear, e => e.date.slice(0, 7));
+
+    barChartData = labels.map(label => {
+        const monthExpenses = monthlyGroups[label] || [];
+        return monthExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'month') {
+    // Month picker functionality
+    const now = new Date();
+    let selectedMonth = now.getMonth();
+    let selectedYear = now.getFullYear();
+    
+    // Check if month/year inputs exist and have values
+    const monthSelect = document.getElementById('summary-month-select');
+    const yearInput = document.getElementById('summary-year-input');
+    
+    if (monthSelect && yearInput && yearInput.value) {
+      selectedMonth = parseInt(monthSelect.value);
+      selectedYear = parseInt(yearInput.value);
+    } else {
+      // Set default values for new render
+      setTimeout(() => {
+        if (document.getElementById('summary-month-select')) {
+          document.getElementById('summary-month-select').value = selectedMonth;
+        }
+        if (document.getElementById('summary-year-input')) {
+          document.getElementById('summary-year-input').value = selectedYear;
+        }
+      }, 0);
+    }
+    
+    const monthString = String(selectedMonth + 1).padStart(2, '0');
+    const yearMonth = `${selectedYear}-${monthString}`;
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(yearMonth));
+    periodString = `${['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][selectedMonth]} ${selectedYear}`;
+
+    // Bar chart: show all days of the selected month
+    const daysInMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+    document.getElementById('bar-chart-title').textContent = `Daily Spending for ${periodString}`;
+
+    const labels = [];
+    for (let i = 1; i <= daysInMonth; i++) {
+        labels.push(`${selectedYear}-${monthString}-${String(i).padStart(2, '0')}`);
+    }
+    barChartLabels = labels.map(d => d.split('-')[2]); // Just show day number
+
+    const dailyGroups = groupBy(periodExpenses, e => e.date);
+    barChartData = labels.map(label => {
+        const dayExpenses = dailyGroups[label] || [];
+        return dayExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    });
+
+  } else if (type === 'yearly') {
+    periodString = `This Year`;
+    const thisYearString = today.getFullYear().toString();
+    periodExpenses = allExpenses.filter(e => e.date.startsWith(thisYearString));
+    
+    // Hide bar chart for yearly view
+    const barChartSection = document.getElementById('summary-bar-chart')?.parentElement.parentElement;
+    if (barChartSection) {
+        barChartSection.style.display = 'none';
+    }
+  }
+
+  // --- Populate Details View ---
+  document.getElementById('total-spending-title').textContent = `Total Spending ${periodString}`;
+  document.getElementById('category-table-title').textContent = `Category Breakdown for ${periodString}`;
+  const totalSpending = periodExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+  document.getElementById('total-spending-amount').textContent = `₹${totalSpending.toFixed(2)}`;
+
+  if (periodExpenses.length > 0) {
+    const categoryGroups = groupBy(periodExpenses, e => e.category);
+    const categoryLabels = Object.keys(categoryGroups).sort();
+    const categoryData = categoryLabels.map(label =>
+      categoryGroups[label].reduce((sum, e) => sum + (e.amount || 0), 0)
+    );
+
+    const tableContainer = document.getElementById('category-summary-table');
+    let tableHTML = '<table class="analyze-table"><thead><tr><th>Category</th><th>Total</th></tr></thead><tbody>';
+    categoryLabels.forEach((label, i) => {
+        tableHTML += `<tr><td>${capitalizeWords(label)}</td><td>₹${categoryData[i].toFixed(2)}</td></tr>`;
+    });
+    tableHTML += '</tbody></table>';
+    tableContainer.innerHTML = tableHTML;
+  } else {
+      document.getElementById('category-summary-table').innerHTML = `<p>No expenses recorded for this period.</p>`;
+  }
+
+  // --- Populate Charts View ---
+  if (type !== 'yearly') {
+    await renderBarChart('summary-bar-chart', barChartLabels, barChartData, `Total Spending`);
+  }
+  
+  document.getElementById('pie-chart-title').textContent = `Category Breakdown for ${periodString}`;
+
+  if (periodExpenses.length > 0) {
+    const categoryGroups = groupBy(periodExpenses, e => e.category);
+    const pieChartLabels = Object.keys(categoryGroups).sort();
+    const pieChartData = pieChartLabels.map(label =>
+      categoryGroups[label].reduce((sum, e) => sum + (e.amount || 0), 0)
+    );
+    await renderPieChart('summary-pie-chart', pieChartLabels, pieChartData, 'Spending by Category');
+  } else {
+      document.getElementById('summary-pie-chart').parentElement.innerHTML = `<p>No expenses recorded for this period.</p>`;
+  }
+}
+
+function groupBy(arr, fn) {
+  return arr.reduce((acc, x) => {
+    const k = fn(x)
+    acc[k] = acc[k] || []
+    acc[k].push(x)
+    return acc
+  }, {})
+}
+
+// Keep track of chart instances
+if (!window._charts) {
+    window._charts = {};
+}
+
+function renderBarChart(canvasId, labels, data, chartLabel) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+
+  if (window._charts[canvasId]) {
+    window._charts[canvasId].destroy();
+  }
+
+  // Create a gradient for the bars using theme colors
+  const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+  gradient.addColorStop(0, 'rgba(46, 125, 50, 0.8)'); // var(--accent-color) with opacity
+  gradient.addColorStop(1, 'rgba(46, 125, 50, 0.4)'); // var(--accent-color) with lower opacity
+
+  // The datalabels plugin is now globally registered via the script tag
+  window._charts[canvasId] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: chartLabel,
+        data,
+        backgroundColor: gradient,
+        borderColor: 'rgba(46, 125, 50, 1)', // var(--accent-color)
+        borderWidth: 1,
+        hoverBackgroundColor: 'rgba(46, 125, 50, 1)' // var(--accent-color)
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        datalabels: {
+            display: false // Explicitly disable for this chart
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(224, 224, 224, 0.1)' // --text-color with alpha
+          },
+          ticks: {
+            color: '#a0a0a0' // --text-secondary-color
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#a0a0a0' // --text-secondary-color
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderPieChart(canvasId, labels, data, chartLabel) {
+  const ctx = document.getElementById(canvasId)?.getContext('2d');
+  if (!ctx) return;
+
+  if (window._charts[canvasId]) {
+    window._charts[canvasId].destroy();
+  }
+
+  const total = data.reduce((acc, val) => acc + val, 0);
+  
+  // A curated color palette that fits the dark theme - updated for better theme alignment
+  const themeColors = [
+    '#2E7D32', // Primary accent green
+    '#388E3C', // Lighter green
+    '#43A047', // Even lighter green
+    '#66BB6A', // Light green
+    '#81C784', // Very light green
+    '#1B5E20', // Dark green
+    '#4CAF50', // Material green
+    '#8BC34A', // Light green variant
+    '#689F38'  // Olive green
+  ];
+
+  const backgroundColors = labels.map((_, i) => themeColors[i % themeColors.length]);
+
+  // The datalabels plugin is now globally registered via the script tag
+  window._charts[canvasId] = new Chart(ctx, {
+    type: 'pie',
+    data: {
+      labels,
+      datasets: [{
+        label: chartLabel,
+        data,
+        backgroundColor: backgroundColors,
+        borderColor: '#1E1E1E', // var(--primary-color)
+        borderWidth: 1, // 1 point border as requested
+        hoverOffset: 15
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: {
+        padding: 30 // Add padding to make space for labels
+      },
+      plugins: {
+        legend: {
+          display: false
+        },
+        datalabels: {
+          formatter: (value, ctx) => {
+            if (total === 0) return '0%';
+            const percentage = ((value / total) * 100).toFixed(0) + '%';
+            return percentage;
+          },
+          color: '#fff',
+          font: {
+            family: 'Lexend, sans-serif',
+            size: 14,
+            weight: 'bold'
+          },
+          anchor: 'end',
+          align: 'start',
+          offset: 15,
+          clamp: true,
+          // Connector lines
+          connector: {
+            display: true,
+            color: '#fff',
+            width: 2,
+            length: 10,
+            type: 'line'
+          },
+          // Label background
+          backgroundColor: (ctx) => ctx.dataset.backgroundColor[ctx.dataIndex],
+          borderColor: '#fff',
+          borderWidth: 2,
+          borderRadius: 8, // Edgy curves
+          padding: 6
+        }
+      }
+    }
+  });
+}
+
+function getCategoryIcon(category) {
+    const cat = category.toLowerCase();
+    const iconClass = 'category-svg-icon';
+
+    if (cat.includes('food') || cat.includes('restaurant')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><polyline points="16 2 16 8 22 8"></polyline><path d="M4 2v20"></path><path d="M6 12H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2z"></path></svg>`;
+    }
+    if (cat.includes('transport') || cat.includes('taxi') || cat.includes('cab') || cat.includes('flight')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><rect x="1" y="3" width="15" height="13"></rect><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon><circle cx="5.5" cy="18.5" r="2.5"></circle><circle cx="18.5" cy="18.5" r="2.5"></circle></svg>`;
+    }
+    if (cat.includes('shopping') || cat.includes('apparel')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>`;
+    }
+    if (cat.includes('bills') || cat.includes('utilities') || cat.includes('rent')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
+    }
+    if (cat.includes('entertainment') || cat.includes('movie')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line><line x1="2" y1="7" x2="7" y2="7"></line><line x1="2" y1="17" x2="7" y2="17"></line><line x1="17" y1="17" x2="22" y2="17"></line><line x1="17" y1="7" x2="22" y2="7"></line></svg>`;
+    }
+    if (cat.includes('groceries')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`;
+    }
+    if (cat.includes('health') || cat.includes('pharmacy') || cat.includes('doctor')) {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>`;
+    }
+    // Default icon
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${iconClass}"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`;
+}
+
+async function renderExpenses() {
+  const list = document.getElementById('expenses-list');
+  if (!list) return;
+
+  const activeFilter = document.querySelector('.btn-filter.active')?.dataset.filter || 'today';
+  const activeView = document.getElementById('view-dropdown-btn')?.dataset.view || 'list';
+
+  const allExpenses = await getAllExpenses();
+  let filteredExpenses = [];
+
+  const today = new Date();
+  // Set time to 0 to compare dates correctly
+  today.setHours(0, 0, 0, 0);
+
+  if (activeFilter === 'today') {
+    const todayDateString = getLocalDateString(today);
+    filteredExpenses = allExpenses.filter(e => e.date === todayDateString);
+  } else if (activeFilter === 'this-month') {
+    const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
+    filteredExpenses = allExpenses.filter(e => e.date.startsWith(currentMonth));
+  } else if (activeFilter === 'specific-month') {
+    const month = document.getElementById('month-select').value;
+    const year = document.getElementById('year-input').value;
+    if (year && month) {
+        const monthString = String(parseInt(month, 10) + 1).padStart(2, '0');
+        const yearMonth = `${year}-${monthString}`;
+        filteredExpenses = allExpenses.filter(e => e.date.startsWith(yearMonth));
+    } else {
+        filteredExpenses = [];
+    }
+  } else if (activeFilter === 'custom') {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    if (startDate && endDate) {
+        filteredExpenses = allExpenses.filter(e => e.date >= startDate && e.date <= endDate);
+    } else {
+        filteredExpenses = [];
+    }
+  } else {
+      // Default to today if filter is unknown
+      const todayDateString = today.toISOString().slice(0, 10);
+      filteredExpenses = allExpenses.filter(e => e.date === todayDateString);
+  }
+
+  // Filter by category
+  const categoryFilters = document.getElementById('category-filters');
+  if (categoryFilters) {
+      const selectedCategories = [...document.querySelectorAll('.category-filter-checkbox:checked')].map(cb => cb.value);
+      if (document.querySelectorAll('.category-filter-checkbox').length > 0) {
+          filteredExpenses = filteredExpenses.filter(e => selectedCategories.includes(e.category));
+      }
+  }
+
+  if (!filteredExpenses.length) {
+    list.innerHTML = '<div class="card"><p>No expenses found for the selected filters.</p></div>';
+    return;
+  }
+
+  // Sort by date descending
+  filteredExpenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (activeView === 'list') {
+    list.innerHTML = filteredExpenses.map(e => `
+      <div class="expense-item">
+        <div class="expense-item-main">
+          <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
+          <div class="expense-details">
+            <span class="expense-description">${capitalizeWords(e.description)}</span>
+            <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+          </div>
+        </div>
+        <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
+      </div>
+    `).join('');
+  } else if (activeView === 'category') {
+    const expensesByCategory = groupBy(filteredExpenses, e => e.category);
+    let html = '';
+    // Sort categories alphabetically for consistent order
+    const sortedCategories = Object.keys(expensesByCategory).sort();
+
+    for (const category of sortedCategories) {
+        html += `
+            <div class="category-group card">
+                <h3 class="category-title">${capitalizeWords(category)}</h3>
+                <div class="category-expense-list">
+                ${expensesByCategory[category].map(e => `
+                    <div class="expense-item">
+                      <div class="expense-item-main">
+                         <div class="expense-category-icon">${getCategoryIcon(e.category)}</div>
+                         <div class="expense-details">
+                           <span class="expense-description">${capitalizeWords(e.description)}</span>
+                           <span class="expense-date">${new Date(e.date).toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' })}</span>
+                         </div>
+                       </div>
+                       <span class="expense-amount">₹${e.amount.toFixed(2)}</span>
+                    </div>
+                `).join('')}
+                </div>
+            </div>
+        `;
+    }
+    list.innerHTML = html || '<div class="card"><p>No expenses found for the selected filter.</p></div>';
+  }
+}
+
+async function renderGoogleAccountStatus() {
+  const statusDiv = document.getElementById('google-account-status')
+  if (!statusDiv) return;
+  statusDiv.innerHTML = ''
+  try {
+    const { isSignedIn } = await import('./googleDrive.js')
+    const signedIn = await isSignedIn()
+    if (signedIn) {
+      const { getGoogleUserProfile, signOutGoogle } = await import('./googleDrive.js')
+      const profile = await getGoogleUserProfile()
+      const profileImageHtml = profile.imageUrl 
+        ? `<img src="${profile.imageUrl}" alt="Profile" onerror="this.style.display='none'">`
+        : `<div style="width: 36px; height: 36px; border-radius: 50%; background-color: var(--secondary-color); display: flex; align-items: center; justify-content: center; font-weight: bold; color: var(--background-color);">${(profile.name || 'U').charAt(0).toUpperCase()}</div>`;
+      
+      statusDiv.innerHTML = `
+        <div class="profile-info">
+            ${profileImageHtml}
+        </div>
+        <button id="google-signout-btn" class="btn-secondary">Sign out</button>
+      `
+      document.getElementById('google-signout-btn').onclick = async () => {
+        const signedOut = await signOutGoogle()
+        if (signedOut) {
+          renderGoogleAccountStatus(); // Re-render to show signed-out state
+        }
+      }
+    } else {
+      statusDiv.innerHTML = '<button id="google-signin-btn">Sign in with Google</button>'
+      document.getElementById('google-signin-btn').onclick = async () => {
+        await signInGoogle();
+        renderGoogleAccountStatus();
+      }
+    }
+  } catch (e) {
+    statusDiv.innerHTML = '<span style="color:red;">Account status error</span>'
+    console.error(e);
+  }
+}
+
+function renderSettingsPage() {
+    document.getElementById('page-content').innerHTML = `
+        <h2>Settings</h2>
+        <div class="settings-container">
+            <div class="setting-item card">
+                <h3>Gemini API Key</h3>
+                <p>Your API key is stored securely in your browser's local storage.</p>
+                <div class="key-input-container">
+                    <input type="password" id="gemini-key-input" value="${getGeminiKey()}">
+                    <button id="toggle-key-visibility" class="toggle-visibility-btn" title="Show API Key">${ICONS.eyeOpen}</button>
+                </div>
+                <div class="gemini-key-buttons">
+                    <button id="save-gemini-key">Save Key</button>
+                    <button id="clear-gemini-key" class="btn-secondary">Clear Key</button>
+                </div>
+            </div>
+            <div class="setting-item card">
+                <h3>Google Drive Sync</h3>
+                <p>Backup and restore your expenses with Google Drive.</p>
+                <div class="drive-buttons">
+                    <button id="sync-drive">Sync to Drive</button>
+                    <button id="load-drive">Load from Drive</button>
+                </div>
+                <div id="drive-msg" class="drive-message"></div>
+            </div>
+            <div class="setting-item card">
+                <h3>📚 Help & Setup Guide</h3>
+                <p>Get help with setup, learn about features, and view detailed instructions.</p>
+                <div class="help-buttons">
+                    <button id="setup-gemini-help">🔑 Gemini API Setup</button>
+                    <button id="detailed-help">📖 Full Guide & Tips</button>
+                </div>
+            </div>
+             <div class="setting-item card">
+                <h3>Danger Zone</h3>
+                <p>Clear all locally stored expense data.</p>
+                <button id="clear-data-btn" class="btn-danger">Clear All Expenses</button>
+            </div>
+        </div>
+    `;
+
+    document.getElementById('save-gemini-key').onclick = () => {
+        const key = document.getElementById('gemini-key-input').value;
+        setGeminiKey(key);
+        showNotification('Gemini API Key saved!', 'success');
+    };
+
+    document.getElementById('clear-gemini-key').onclick = () => {
+        if (confirm('Are you sure you want to clear your Gemini API key? You will lose access to AI features until you add it again.')) {
+            setGeminiKey('');
+            document.getElementById('gemini-key-input').value = '';
+            showNotification('Gemini API Key cleared!', 'info');
+        }
+    };
+
+    document.getElementById('toggle-key-visibility').onclick = () => {
+        const keyInput = document.getElementById('gemini-key-input');
+        const toggleBtn = document.getElementById('toggle-key-visibility');
+        
+        if (keyInput.type === 'password') {
+            keyInput.type = 'text';
+            toggleBtn.innerHTML = ICONS.eyeClosed;
+            toggleBtn.title = 'Hide API Key';
+        } else {
+            keyInput.type = 'password';
+            toggleBtn.innerHTML = ICONS.eyeOpen;
+            toggleBtn.title = 'Show API Key';
+        }
+    };
+
+    document.getElementById('setup-gemini-help').onclick = () => {
+        showGeminiKeyPopup(false);
+    };
+
+    document.getElementById('detailed-help').onclick = () => {
+        showDetailedInstructions();
+    };
+
+    document.getElementById('sync-drive').onclick = () => triggerSync(true);
+    document.getElementById('load-drive').onclick = async () => {
+        const driveMsg = document.getElementById('drive-msg');
+        driveMsg.textContent = ''; // Clear any previous messages
+
+        try {
+          let signedIn = await isSignedIn();
+          if (!signedIn) {
+            showNotification('Please sign in to Google to load from Drive.', 'info');
+            await signInGoogle();
+            renderGoogleAccountStatus();
+          }
+          signedIn = await isSignedIn();
+          if (!signedIn) {
+            showNotification('Google Sign-In is required to load from Drive.', 'error');
+            return;
+          }
+
+          showNotification('Opening Google Drive file picker...', 'info');
+          const fileContent = await pickAndDownloadFromDrive();
+
+          if (fileContent === null) {
+            showNotification('File selection cancelled.', 'info');
+            return;
+          }
+
+          showNotification('Restoring expenses from backup...', 'info');
+
+          const expenses = JSON.parse(fileContent);
+          if (!Array.isArray(expenses)) {
+            throw new Error("Invalid backup file format.");
+          }
+
+          await clearExpenses();
+          for (const expense of expenses) {
+            const { id, ...expenseToSave } = expense;
+            await addExpense(expenseToSave);
+          }
+          
+          showNotification('Expenses successfully restored from Google Drive!', 'success');
+
+        } catch (e) {
+          console.error('Google Drive load failed:', e);
+          showNotification(`Google Drive load failed: ${e.message}`, 'error');
+        }
+    };
+    
+    document.getElementById('clear-data-btn').onclick = async () => {
+        if (confirm('Are you sure you want to delete all your local expense data? This cannot be undone.')) {
+            await clearExpenses();
+            showNotification('All local expenses have been cleared.', 'success');
+        }
+    };
+}
+
+
+// On load, call renderNav() and renderForm() for Home as default
+async function main() {
+  // setupOnScreenLogger();
+  renderNav();
+  await renderForm();
+
+  console.log("Attempting silent sign-in on page load...");
+  try {
+    await trySilentSignIn();
+    console.log("Silent sign-in check complete.");
+    // After attempting silent sign-in, update the google account status display
+    renderGoogleAccountStatus();
+  } catch (error) {
+    console.error("Error during silent sign-in:", error);
+    // The UI will show the default "Sign In" button, which is the correct fallback.
+  }
+  
+  // Check if this is the user's first time using the app
+  const isFirstTime = !localStorage.getItem('app_visited');
+  if (isFirstTime) {
+    localStorage.setItem('app_visited', 'true');
+    // For first time users, show the setup popup even if they might have skipped it
+    if (!getGeminiKey()) {
+      setTimeout(() => showGeminiKeyPopup(false), 1000); // Small delay for better UX
+    }
+  } else {
+    // For returning users, only show if Gemini key is missing
+    if (!getGeminiKey()) showGeminiKeyPopup(false);
+  }
+  
+  // Check version and handle updates
+  const versionInfo = checkVersion();
+  if (versionInfo.isNewVersion) {
+    console.log('App has been updated to version:', versionInfo.currentVersion);
+  }
+  
+  // Enhanced service worker registration with update detection
+  if ('serviceWorker' in navigator) {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      console.log('Service Worker registered successfully:', registration);
+      
+      // Check for updates every 30 seconds when app is active
+      setInterval(() => {
+        registration.update();
+      }, 30000);
+      
+      // Listen for new service worker installing
+      registration.addEventListener('updatefound', () => {
+        newWorker = registration.installing;
+        console.log('New service worker found!');
+        
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed') {
+            if (navigator.serviceWorker.controller) {
+              // New update available
+              showUpdateAvailableNotification();
+            }
+          }
+        });
+      });
+      
+    } catch (error) {
+      console.log('Service Worker registration failed:', error);
+    }
+    
+    // Listen for controlled page reloads
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    });
+  }
+  
+  // Handle PWA install prompt
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent the mini-infobar from appearing on mobile
+    e.preventDefault();
+    // Stash the event so it can be triggered later
+    deferredPrompt = e;
+    // Show install button/notification
+    showInstallPrompt();
+  });
+  
+  // Function to show install prompt
+  function showInstallPrompt() {
+    // Only show if user hasn't dismissed it before
+    if (localStorage.getItem('pwa_install_dismissed') === 'true') return;
+    
+    setTimeout(() => {
+      showNotification('💡 Install this app for a better experience! Look for "Add to Home Screen" in your browser menu.', 'info');
+    }, 5000); // Show after 5 seconds
+  }
+  
+  // Check for updates when app becomes visible (user returns to app)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(registration => {
+        if (registration) {
+          registration.update();
+        }
+      });
+    }
+  });
+}
+
+// PWA Update Management
+let newWorker;
+let refreshing = false;
+
+// Function to show update notification
+function showUpdateAvailableNotification() {
+  if (document.getElementById('update-modal')) return; // Prevent duplicate modals
+  
+  const updateModal = document.createElement('div');
+  updateModal.id = 'update-modal';
+  updateModal.className = 'update-modal';
+  updateModal.innerHTML = `
+    <div class="update-content">
+      <div class="update-header">
+        <h3>🚀 Update Available</h3>
+      </div>
+      <div class="update-body">
+        <p>A new version of AI Expense Tracker is available with improvements and bug fixes.</p>
+        <div class="update-actions">
+          <button id="apply-update-btn" class="btn-primary">Update Now</button>
+          <button id="dismiss-update-btn" class="btn-secondary">Later</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(updateModal);
+  
+  document.getElementById('apply-update-btn').onclick = applyUpdate;
+  document.getElementById('dismiss-update-btn').onclick = dismissUpdate;
+}
+
+// Function to apply update
+function applyUpdate() {
+  if (newWorker) {
+    newWorker.postMessage({ type: 'SKIP_WAITING' });
+  }
+  dismissUpdate();
+}
+
+// Function to dismiss update notification
+function dismissUpdate() {
+  const updateModal = document.getElementById('update-modal');
+  if (updateModal) {
+    updateModal.remove();
+  }
+}
+
+main();
