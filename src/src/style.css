@@ -869,8 +869,8 @@ button.btn-danger {
 
 .sub-tab-btn {
     padding: 0.6rem 1rem;
-    border: 1px solid var(--border-color);
-    background-color: var(--background-color);
+    border: 1px solid var(--secondary-color);
+    background-color: var(--secondary-color);
     color: var(--text-color);
     border-radius: var(--border-radius);
     cursor: pointer;
@@ -879,13 +879,13 @@ button.btn-danger {
 }
 
 .sub-tab-btn:hover {
-    background-color: var(--primary-color-darker);
+    background-color: var(--primary-color);
 }
 
 .sub-tab-btn.active {
-    background-color: var(--primary-color);
-    color: #fff;
-    border-color: var(--primary-color);
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
 }
 
 .sub-tab-content {
@@ -1783,4 +1783,23 @@ canvas {
     width: 100% !important;
     max-width: 280px;
     margin: 0.5rem auto 0 auto;
+}
+
+/* Category view specific styles */
+.category-group {
+  margin-bottom: 1.5rem;
+}
+
+.category-title {
+  color: var(--accent-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  padding-left: 0.5rem;
+}
+
+.category-expense-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }

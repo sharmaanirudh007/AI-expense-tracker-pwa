@@ -1341,10 +1341,10 @@ async function renderSummaryTab(type) {
     const thisYearString = today.getFullYear().toString();
     periodExpenses = allExpenses.filter(e => e.date.startsWith(thisYearString));
     
-    // Hide bar chart for yearly view
-    const barChartSection = document.getElementById('summary-bar-chart')?.parentElement.parentElement;
-    if (barChartSection) {
-        barChartSection.style.display = 'none';
+    // Hide only the bar chart section for yearly view
+    const barChartContainer = document.getElementById('summary-bar-chart')?.parentElement;
+    if (barChartContainer) {
+        barChartContainer.style.display = 'none';
     }
   }
 
@@ -1374,7 +1374,18 @@ async function renderSummaryTab(type) {
 
   // --- Populate Charts View ---
   if (type !== 'yearly') {
+    // Show bar chart section for non-yearly views
+    const barChartContainer = document.getElementById('summary-bar-chart')?.parentElement;
+    if (barChartContainer) {
+        barChartContainer.style.display = 'block';
+    }
     renderBarChart('summary-bar-chart', barChartLabels, barChartData, `Total Spending`);
+  }
+  
+  // Always show pie chart section
+  const pieChartContainer = document.getElementById('summary-pie-chart')?.parentElement;
+  if (pieChartContainer) {
+      pieChartContainer.style.display = 'block';
   }
   
   document.getElementById('pie-chart-title').textContent = `Category Breakdown for ${periodString}`;
@@ -1769,6 +1780,32 @@ async function renderExpenses() {
         const expenseDate = new Date(e.date);
         return expenseDate.getMonth() === month && expenseDate.getFullYear() === year;
       });
+    } else if (activeFilter === 'specific-month') {
+      const monthSelect = document.getElementById('month-select');
+      const yearInput = document.getElementById('year-input');
+      
+      if (monthSelect && yearInput && yearInput.value) {
+        const selectedMonth = parseInt(monthSelect.value);
+        const selectedYear = parseInt(yearInput.value);
+        
+        filteredExpenses = allExpenses.filter(e => {
+          const expenseDate = new Date(e.date);
+          return expenseDate.getMonth() === selectedMonth && expenseDate.getFullYear() === selectedYear;
+        });
+      }
+    } else if (activeFilter === 'custom') {
+      const startDateInput = document.getElementById('start-date');
+      const endDateInput = document.getElementById('end-date');
+      
+      if (startDateInput && endDateInput && startDateInput.value && endDateInput.value) {
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        
+        filteredExpenses = allExpenses.filter(e => {
+          const expenseDate = new Date(e.date);
+          return expenseDate >= startDate && expenseDate <= endDate;
+        });
+      }
     }
   
   // Get checked categories
